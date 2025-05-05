@@ -1,0 +1,9 @@
+streamlit
+pandas
+plotly
+fpdf
+python-pptx
+requests
+statsmodels
+openpyxl          # Excel export
+# streamlit-authenticator   ← commented because you disabled auth
