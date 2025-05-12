@@ -1,9 +1,3 @@
-try:
-    import streamlit_authenticator as stauth
-except ModuleNotFoundError:
-    st.error("streamlit‑authenticator missing …")
-    st.stop()
-
 streamlit
 pandas
 plotly
