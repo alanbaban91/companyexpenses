@@ -6,5 +6,8 @@ fpdf
 python-pptx
 requests
 statsmodels
+gspread
+gspread_dataframe
+google-auth
 openpyxl          # Excel export
 # streamlit-authenticator   ← commented because you disabled auth
