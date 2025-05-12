@@ -31,6 +31,31 @@ import streamlit as st
 import plotly.express as px
 from fpdf import FPDF
 
+import gspread
+from gspread_dataframe import get_as_dataframe, set_with_dataframe
+from google.oauth2.service_account import Credentials
+
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+gc = gspread.authorize(creds)
+
+_sheet_cache: dict[str, gspread.Spreadsheet] = {}
+
+def ws_open(name: str) -> gspread.Worksheet:
+    if name not in _sheet_cache:
+        _sheet_cache[name] = gc.open_by_key(st.secrets["gsheets"][name]).sheet1
+    return _sheet_cache[name]
+
+def load_df(name: str) -> pd.DataFrame:
+    df = get_as_dataframe(ws_open(name), evaluate_formulas=True, dtype=str)
+    return df.dropna(how="all").reset_index(drop=True)
+
+def save_df(name: str, df: pd.DataFrame):
+    ws = ws_open(name)
+    ws.clear()
+    set_with_dataframe(ws, df)
+
+
 # ─────────────────────────── PATHS & INITIALIZATION ─────────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"; DATA_DIR.mkdir(exist_ok=True)
