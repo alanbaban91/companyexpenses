@@ -29,7 +29,7 @@ from google.oauth2.service_account import Credentials
 
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
 creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=SCOPE
+    st.secrets["gcp_service_account"]["json"]
 )
 gc = gspread.authorize(creds)
 
