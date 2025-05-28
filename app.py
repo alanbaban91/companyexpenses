@@ -196,7 +196,7 @@ if page == "Invoice Generator":
         milestone_label = None
         amount = 0
         for milestone in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]:
-            if milestone in selected and pd.notnull(selected[milestone]) and selected[milestone] != 0:
+            if milestone in selected and pd.notnull(selected[milestone]) and selected[milestone] > 0:
                 milestone_label = milestone
                 amount = selected[milestone]
                 break
