@@ -34,13 +34,11 @@ for key, path in FILES.items():
     if not path.exists():
         pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
 
-# ─────────────────────── LOAD DATA ───────────────────────
 clients_df  = pd.read_csv(FILES["clients"])
 projects_df = pd.read_csv(FILES["projects_milestones"])
 salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"])
 expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"])
 
-# ─────────────────────── STREAMLIT SECRETS ───────────────────────
 try:
     PO_USER  = st.secrets["pushover_user_key"]
     PO_TOKEN = st.secrets["pushover_app_token"]
@@ -57,7 +55,6 @@ def push_notify(msg):
         except Exception as e:
             st.warning(f"Push failed: {e}")
 
-# ─────────────────────── UI & NAVIGATION ───────────────────────
 st.set_page_config("33Studio Dashboard", layout="wide")
 page = st.sidebar.radio("Navigate", [
     "Dashboard", "Clients", "Projects", "Salaries", "Expenses", "Invoice Generator", "Analytics"
@@ -66,7 +63,6 @@ page = st.sidebar.radio("Navigate", [
 def save_df(df, csv): df.to_csv(csv, index=False)
 def money(x): return f"${x:,.2f}"
 
-# ─────────────────────── DASHBOARD ───────────────────────
 if page == "Dashboard":
     st.header("Overview & Alerts")
     income = clients_df["Total Paid"].sum()
@@ -81,7 +77,6 @@ if page == "Dashboard":
     if st.number_input("Alert if Outstanding >", 0.0, value=1000.0) < due:
         push_notify("Outstanding exceeds threshold!")
 
-# ─────────────────────── CLIENTS ───────────────────────
 elif page == "Clients":
     st.header("Clients")
     edited = st.data_editor(clients_df, key="clients", num_rows="dynamic", use_container_width=True)
@@ -89,10 +84,8 @@ elif page == "Clients":
         save_df(edited, FILES["clients"])
         push_notify("Clients table updated")
 
-# ─────────────────────── PROJECTS ───────────────────────
 elif page == "Projects":
     st.header("Project Milestones")
-
     def auto_calc(row):
         try:
             budget = float(row["Budget"])
@@ -114,62 +107,107 @@ elif page == "Projects":
         pd.DataFrame(columns=COLUMNS["projects_milestones"]).to_csv(FILES["projects_milestones"], index=False)
         st.success(f"Archived to {archive_path.name} and reset new month.")
 
-# ─────────────────────── SALARIES ───────────────────────
 elif page == "Salaries":
     st.header("Salaries")
-    edited = st.data_editor(salar_df := salaries_df.copy(), key="salaries", num_rows="dynamic", use_container_width=True)
-    if not edited.equals(salar_df):
+    edited = st.data_editor(salaries_df, key="salaries", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(salaries_df):
         save_df(edited, FILES["salaries"])
         push_notify("Salaries updated")
 
-# ─────────────────────── EXPENSES ───────────────────────
 elif page == "Expenses":
     st.header("Expenses")
-    edited = st.data_editor(exp_df := expenses_df.copy(), key="expenses", num_rows="dynamic", use_container_width=True)
-    if not edited.equals(exp_df):
+    edited = st.data_editor(expenses_df, key="expenses", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(expenses_df):
         save_df(edited, FILES["expenses"])
         push_notify("Expenses updated")
 
-# ─────────────────────── INVOICE GENERATOR ───────────────────────
+class InvoicePDF(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 16)
+        self.cell(0, 10, "33Studio Creative Agency", ln=True, align="L")
+        self.set_font("Helvetica", "", 10)
+        self.cell(0, 5, "Erbil, Kurdistan Region, Iraq", ln=True, align="L")
+        self.cell(0, 5, "Email: hello@33studio.org", ln=True, align="L")
+        self.ln(10)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+
+    def invoice_body(self, client, project, budget, payment_due, issue_date):
+        self.set_font("Helvetica", "B", 12)
+        self.cell(0, 10, f"Invoice for {client}", ln=True)
+        self.set_font("Helvetica", "", 10)
+        self.cell(100, 6, f"Project: {project}", ln=True)
+        self.cell(100, 6, f"Issue Date: {issue_date}", ln=True)
+        self.cell(100, 6, f"Due Amount: ${payment_due:,.2f}", ln=True)
+        self.cell(100, 6, f"Total Project Budget: ${budget:,.2f}", ln=True)
+        self.ln(10)
+        self.set_font("Helvetica", "B", 10)
+        self.cell(100, 8, "Description", border=1)
+        self.cell(40, 8, "Amount", border=1, ln=True)
+        self.set_font("Helvetica", "", 10)
+        self.cell(100, 8, "Milestone Payment", border=1)
+        self.cell(40, 8, f"${payment_due:,.2f}", border=1, ln=True)
+        self.ln(10)
+        self.cell(100, 6, "Please make the payment by the due date.", ln=True)
+
+def create_invoice_pdf(client, project, employee, budget, due_amount):
+    pdf = InvoicePDF()
+    pdf.add_page()
+    pdf.invoice_body(client, project, budget, due_amount, datetime.today().strftime("%Y-%m-%d"))
+    filename = INV_DIR / f"Invoice_{client.replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
+    pdf.output(filename)
+    return filename
+
 elif page == "Invoice Generator":
     st.header("\U0001F4C4 Generate Invoice")
     milestone_df = pd.read_csv(FILES["projects_milestones"])
 
-    if milestone_df.empty:
-        st.warning("No projects found.")
+    valid_clients = milestone_df["Client"].dropna().unique().tolist()
+    if not valid_clients:
+        st.warning("No valid clients found.")
     else:
-        client = st.selectbox("Select Client", milestone_df["Client"].unique())
+        client = st.selectbox("Select Client", valid_clients)
         filtered = milestone_df[milestone_df["Client"] == client]
-        project = st.selectbox("Select Project", filtered["Project"].unique())
-        selected = filtered[filtered["Project"] == project].iloc[0]
+        valid_projects = filtered["Project"].dropna().unique().tolist()
 
-        due_amount = 0
-        if selected["Payment 20%"] != 0:
-            due_amount = selected["Payment 20%"]
-            label = "20% milestone"
-        elif selected["Payment 40%"] != 0:
-            due_amount = selected["Payment 40%"]
-            label = "First 40% milestone"
-        elif selected["Payment 40% (2)"] != 0:
-            due_amount = selected["Payment 40% (2)"]
-            label = "Final 40% milestone"
+        if valid_projects:
+            project = st.selectbox("Select Project", valid_projects)
+            selected = filtered[filtered["Project"] == project]
+            if not selected.empty:
+                selected = selected.iloc[0]
+                due_amount = 0
+                if selected["Payment 20%"] != 0:
+                    due_amount = selected["Payment 20%"]
+                    label = "20% milestone"
+                elif selected["Payment 40%"] != 0:
+                    due_amount = selected["Payment 40%"]
+                    label = "First 40% milestone"
+                elif selected["Payment 40% (2)"] != 0:
+                    due_amount = selected["Payment 40% (2)"]
+                    label = "Final 40% milestone"
+                else:
+                    st.success("✅ All payments completed for this project.")
+                    st.stop()
+
+                st.write(f"Next Payment Due: **{label}** - ${due_amount:,.2f}")
+                if st.button("\U0001F9FE Generate Invoice"):
+                    path = create_invoice_pdf(
+                        client=selected["Client"],
+                        project=selected["Project"],
+                        employee=selected["Employee"],
+                        budget=float(selected["Budget"]),
+                        due_amount=float(due_amount)
+                    )
+                    st.success("Invoice generated!")
+                    st.download_button("\U0001F4E5 Download Invoice", open(path, "rb"), file_name=path.name)
+            else:
+                st.warning("No project found for selected client.")
         else:
-            st.success("✅ All payments completed for this project.")
-            st.stop()
+            st.warning("No projects available for this client.")
 
-        st.write(f"Next Payment Due: **{label}** - ${due_amount:,.2f}")
-        if st.button("\U0001F9FE Generate Invoice"):
-            path = create_invoice_pdf(
-                client=selected["Client"],
-                project=selected["Project"],
-                employee=selected["Employee"],
-                budget=float(selected["Budget"]),
-                due_amount=float(due_amount)
-            )
-            st.success("Invoice generated!")
-            st.download_button("\U0001F4E5 Download Invoice", open(path, "rb"), file_name=path.name)
-
-# ─────────────────────── ANALYTICS ───────────────────────
 elif page == "Analytics":
     st.header("Client Payments Chart")
     if not clients_df.empty:
