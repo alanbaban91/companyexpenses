@@ -84,7 +84,7 @@ elif page == "Clients":
         "Contact": st.column_config.TextColumn(),
         "Total Paid": st.column_config.NumberColumn(),
         "Total Due": st.column_config.NumberColumn()
-    }, use_container_width=True), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
+    }, use_container_width=True)
     if not edited.equals(clients_df):
         save_df(edited, FILES["clients"])
         push_notify("Clients table updated")
@@ -120,12 +120,7 @@ elif page == "Salaries":
         "Salary": st.column_config.NumberColumn(),
         "Paid": st.column_config.TextColumn(),
         "Date": st.column_config.DateColumn()
-    }, use_container_width=True),
-        "Role": st.column_config.TextColumn(),
-        "Salary": st.column_config.NumberColumn(),
-        "Paid": st.column_config.TextColumn(),
-        "Date": st.column_config.DateColumn()
-    }, use_container_width=True), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
+    }, use_container_width=True)
     if not edited.equals(salaries_df):
         save_df(edited, FILES["salaries"])
         push_notify("Salaries updated")
@@ -137,7 +132,7 @@ elif page == "Expenses":
         "Amount": st.column_config.NumberColumn(),
         "Date": st.column_config.DateColumn(),
         "Notes": st.column_config.TextColumn()
-    }, use_container_width=True), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
+    }, use_container_width=True)
     if not edited.equals(expenses_df):
         save_df(edited, FILES["expenses"])
         push_notify("Expenses updated")
