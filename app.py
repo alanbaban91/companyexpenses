@@ -44,13 +44,31 @@ st.title("📊 33Studio — Finance Dashboard")
 
 page = st.sidebar.radio("Navigate", [
     "Dashboard", "Clients & Projects", "Employee Salaries",
-    "Expenses", "Invoice Generator", "Analytics", "Monthly Plans"
+    "Expenses", "Analytics", "Invoice Generator", "Monthly Plans"
 ])
 
 def save_df(df, csv): df.to_csv(csv, index=False)
 def money(x): return f"${x:,.2f}"
 
-# ─────────────────────── DASHBOARD ───────────────────────
+class InvoicePDF(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "33Studio — Payment Request", ln=True, align="C")
+        self.ln(5)
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+    def monthly_invoice(self, row):
+        self.set_font("Helvetica", size=11)
+        self.cell(0, 10, f"Payment Request for {row['Client']}", ln=True)
+        self.cell(0, 10, f"Amount Due: ${row['Amount']:.2f}", ln=True)
+        self.cell(0, 10, f"Payment Method: {row['Payment Method']}", ln=True)
+        self.cell(0, 10, f"Due Date: 28 {row['Month']}", ln=True)
+        self.ln(5)
+        self.cell(0, 10, "Please make the payment by the due date.", ln=True)
+
+# ─────────────────────── PAGES ───────────────────────
 if page == "Dashboard":
     st.header("📈 Overview Metrics")
     clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
@@ -71,7 +89,6 @@ if page == "Dashboard":
         ("Unpaid Salaries", unpaid_salaries)
     ]): c.metric(label, money(val))
 
-# ─────────────────────── CLIENTS & PROJECTS ───────────────────────
 elif page == "Clients & Projects":
     st.header("👥 Clients & Projects")
 
@@ -88,7 +105,6 @@ elif page == "Clients & Projects":
             st.rerun()
 
     st.dataframe(clients_df)
-
     st.divider()
     st.subheader("Add Project")
 
@@ -111,7 +127,6 @@ elif page == "Clients & Projects":
 
     st.dataframe(projects_df)
 
-# ─────────────────────── EMPLOYEE SALARIES ───────────────────────
 elif page == "Employee Salaries":
     st.header("💼 Employee Salaries")
     with st.form("add_salary", clear_on_submit=True):
@@ -126,7 +141,6 @@ elif page == "Employee Salaries":
             st.rerun()
     st.dataframe(salaries_df)
 
-# ─────────────────────── EXPENSES ───────────────────────
 elif page == "Expenses":
     st.header("💸 Monthly Expenses")
     with st.form("add_expense", clear_on_submit=True):
@@ -140,7 +154,6 @@ elif page == "Expenses":
             st.rerun()
     st.dataframe(expenses_df)
 
-# ─────────────────────── ANALYTICS ───────────────────────
 elif page == "Analytics":
     st.header("📊 Financial Charts")
     fig = px.bar(clients_df, x="Client", y="Total Paid", title="Client Payment Overview")
@@ -158,31 +171,11 @@ elif page == "Analytics":
         fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expense Breakdown by Category", hole=0.4)
         st.plotly_chart(fig3, use_container_width=True)
 
-# ─────────────────────── INVOICE GENERATOR ───────────────────────
-class InvoicePDF(FPDF):
-    def header(self):
-        self.set_font("Helvetica", "B", 14)
-        self.cell(0, 10, "33Studio — Payment Request", ln=True, align="C")
-        self.ln(5)
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
-        self.cell(0, 10, f"Page {self.page_no()}", align="C")
-    def monthly_invoice(self, row):
-        self.set_font("Helvetica", size=11)
-        self.cell(0, 10, f"Payment Request for {row['Client']}", ln=True)
-        self.cell(0, 10, f"Amount Due: ${row['Amount']:.2f}", ln=True)
-        self.cell(0, 10, f"Payment Method: {row['Payment Method']}", ln=True)
-        self.cell(0, 10, f"Due Date: 28 {row['Month']}", ln=True)
-        self.ln(5)
-        self.cell(0, 10, "Please make the payment by the due date.", ln=True)
-
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
     st.write("Generate invoices manually or track monthly payment plans.")
-    # Add logic from Monthly Plans section here for reuse if needed
+    # Placeholder logic here to later expand
 
-# ─────────────────────── MONTHLY PLANS ───────────────────────
 elif page == "Monthly Plans":
     st.header("📅 Monthly Payment Plans")
     with st.form("add_monthly", clear_on_submit=True):
