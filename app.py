@@ -90,7 +90,13 @@ elif page == "Clients & Projects":
             })
             st.rerun()
 
-    st.dataframe(clients_df)
+    edited_clients_df = st.data_editor(clients_df, num_rows='dynamic', use_container_width=True, key='edit_clients')
+    if not edited_clients_df.equals(clients_df):
+        if st.button("💾 Confirm Save Clients"):
+            save_df(edited_clients_df, FILES["clients"])
+            st.success("Clients table updated.")
+        if st.button("↩ Undo Changes Clients"):
+            st.rerun()
     st.divider()
     st.subheader("Add Project")
 
@@ -114,7 +120,13 @@ elif page == "Clients & Projects":
                 st.success("Project saved.")
                 st.rerun()
 
-    st.dataframe(projects_df)
+    edited_projects_df = st.data_editor(projects_df, num_rows='dynamic', use_container_width=True, key='edit_projects')
+    if not edited_projects_df.equals(projects_df):
+        if st.button("💾 Confirm Save Projects"):
+            save_df(edited_projects_df, FILES["projects"])
+            st.success("Projects table updated.")
+        if st.button("↩ Undo Changes Projects"):
+            st.rerun()
 
     st.subheader("💰 Mark Project Payments")
     if not projects_df.empty:
@@ -144,7 +156,13 @@ elif page == "Employee Salaries":
                 "Employee": emp, "Role": role, "Salary": sal, "Paid": paid, "Date": dt
             })
             st.rerun()
-    st.dataframe(salaries_df)
+    edited_salaries_df = st.data_editor(salaries_df, num_rows='dynamic', use_container_width=True, key='edit_salaries')
+    if not edited_salaries_df.equals(salaries_df):
+        if st.button("💾 Confirm Save Salaries"):
+            save_df(edited_salaries_df, FILES["salaries"])
+            st.success("Salaries table updated.")
+        if st.button("↩ Undo Changes Salaries"):
+            st.rerun()
 
 # ─────────────────────── EXPENSES ───────────────────────
 elif page == "Expenses":
@@ -159,7 +177,13 @@ elif page == "Expenses":
                 "Category": cat, "Amount": amt, "Date": dt, "Notes": notes
             })
             st.rerun()
-    st.dataframe(expenses_df)
+    edited_expenses_df = st.data_editor(expenses_df, num_rows='dynamic', use_container_width=True, key='edit_expenses')
+    if not edited_expenses_df.equals(expenses_df):
+        if st.button("💾 Confirm Save Expenses"):
+            save_df(edited_expenses_df, FILES["expenses"])
+            st.success("Expenses table updated.")
+        if st.button("↩ Undo Changes Expenses"):
+            st.rerun()
 
 # ─────────────────────── INVOICES ───────────────────────
 class InvoicePDF(FPDF):
@@ -235,7 +259,7 @@ elif page == "Analytics":
     # Project Budget Breakdown by Milestone Percentage
     if not projects_df.empty:
         if "Budget" in projects_df.columns:
-        projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
+                projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
         milestone_sum = {
             "20%": projects_df["Payment 20%"].sum(),
             "40%": projects_df["Payment 40%"].sum(),
