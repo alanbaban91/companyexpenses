@@ -10,4 +10,5 @@ gspread
 gspread_dataframe
 google-auth
 openpyxl          # Excel export
+google-cloud-storage
 # streamlit-authenticator   ← commented because you disabled auth
