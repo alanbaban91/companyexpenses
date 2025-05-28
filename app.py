@@ -183,7 +183,7 @@ def create_invoice_pdf(row, label, amount):
     pdf.output(str(fpath))
     return fpath
 
-elif page == "Invoice Generator":
+if page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
     if projects_df.empty:
         st.warning("No projects available.")
