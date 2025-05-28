@@ -120,6 +120,11 @@ elif page == "Salaries":
         "Salary": st.column_config.NumberColumn(),
         "Paid": st.column_config.TextColumn(),
         "Date": st.column_config.DateColumn()
+    }, use_container_width=True),
+        "Role": st.column_config.TextColumn(),
+        "Salary": st.column_config.NumberColumn(),
+        "Paid": st.column_config.TextColumn(),
+        "Date": st.column_config.DateColumn()
     }, use_container_width=True), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
     if not edited.equals(salaries_df):
         save_df(edited, FILES["salaries"])
