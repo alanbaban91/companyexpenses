@@ -234,6 +234,7 @@ elif page == "Analytics":
 
     # Project Budget Breakdown by Milestone Percentage
     if not projects_df.empty:
+        if "Budget" in projects_df.columns:
         projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
         milestone_sum = {
             "20%": projects_df["Payment 20%"].sum(),
