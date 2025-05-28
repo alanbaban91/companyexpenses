@@ -79,7 +79,7 @@ if page == "Dashboard":
 
 elif page == "Clients":
     st.header("Clients")
-    edited = st.data_editor(clients_df, key="clients", num_rows="dynamic", use_container_width=True)
+    edited = st.data_editor(clients_df, key="clients", num_rows="dynamic", column_config={"Client": st.column_config.TextColumn(), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
     if not edited.equals(clients_df):
         save_df(edited, FILES["clients"])
         push_notify("Clients table updated")
@@ -96,7 +96,7 @@ elif page == "Projects":
         return row
 
     projects_df = projects_df.apply(auto_calc, axis=1)
-    edited = st.data_editor(projects_df, key="milestones", num_rows="dynamic", use_container_width=True)
+    edited = st.data_editor(projects_df, key="milestones", num_rows="dynamic", column_config={"Client": st.column_config.TextColumn(), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
     if not edited.equals(projects_df):
         save_df(edited, FILES["projects_milestones"])
         push_notify("Projects table updated")
@@ -109,14 +109,14 @@ elif page == "Projects":
 
 elif page == "Salaries":
     st.header("Salaries")
-    edited = st.data_editor(salaries_df, key="salaries", num_rows="dynamic", use_container_width=True)
+    edited = st.data_editor(salaries_df, key="salaries", num_rows="dynamic", column_config={"Client": st.column_config.TextColumn(), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
     if not edited.equals(salaries_df):
         save_df(edited, FILES["salaries"])
         push_notify("Salaries updated")
 
 elif page == "Expenses":
     st.header("Expenses")
-    edited = st.data_editor(expenses_df, key="expenses", num_rows="dynamic", use_container_width=True)
+    edited = st.data_editor(expenses_df, key="expenses", num_rows="dynamic", column_config={"Client": st.column_config.TextColumn(), "Project": st.column_config.TextColumn(), "Employee": st.column_config.TextColumn(), "Budget": st.column_config.NumberColumn(), "Payment 20%": st.column_config.NumberColumn(), "Payment 40%": st.column_config.NumberColumn(), "Payment 40% (2)": st.column_config.NumberColumn()}, use_container_width=True)
     if not edited.equals(expenses_df):
         save_df(edited, FILES["expenses"])
         push_notify("Expenses updated")
