@@ -116,6 +116,20 @@ elif page == "Clients & Projects":
 
     st.dataframe(projects_df)
 
+    st.subheader("💰 Mark Project Payments")
+    if not projects_df.empty:
+        selected_proj = st.selectbox("Select a Project to Mark Payment", projects_df["Project"].unique())
+        milestone_to_mark = st.radio("Mark as Paid", ["Payment 20%", "Payment 40%", "Payment 40% (2)"])
+        if st.button("Confirm Payment"):
+            idx = projects_df[projects_df["Project"] == selected_proj].index
+            if not idx.empty:
+                projects_df.loc[idx, milestone_to_mark] = 0
+                if all(projects_df.loc[idx, col].values[0] == 0 for col in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]):
+                    projects_df.loc[idx, "Paid Status"] = "Paid"
+                save_df(projects_df, FILES["projects"])
+                st.success(f"{milestone_to_mark} marked as paid.")
+                st.rerun()
+
 # ─────────────────────── SALARIES ───────────────────────
 elif page == "Employee Salaries":
     st.header("💼 Employee Salaries")
@@ -213,5 +227,24 @@ if page == "Invoice Generator":
 # ─────────────────────── ANALYTICS ───────────────────────
 elif page == "Analytics":
     st.header("📊 Financial Charts")
+
+    # Total Paid per Client
     fig = px.bar(clients_df, x="Client", y="Total Paid", title="Client Payment Overview")
     st.plotly_chart(fig, use_container_width=True)
+
+    # Project Budget Breakdown by Milestone Percentage
+    if not projects_df.empty:
+        projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
+        milestone_sum = {
+            "20%": projects_df["Payment 20%"].sum(),
+            "40%": projects_df["Payment 40%"].sum(),
+            "40% (2)": projects_df["Payment 40% (2)"].sum(),
+        }
+        fig2 = px.pie(values=list(milestone_sum.values()), names=list(milestone_sum.keys()), hole=0.4, title="Project Milestone Payment % Distribution")
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # Expense Breakdown
+    if not expenses_df.empty:
+        exp_sum = expenses_df.groupby("Category")["Amount"].sum().reset_index()
+        fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expense Breakdown by Category", hole=0.4)
+        st.plotly_chart(fig3, use_container_width=True)
