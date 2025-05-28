@@ -124,7 +124,7 @@ elif page == "Clients & Projects":
             idx = projects_df[projects_df["Project"] == selected_proj].index
             if not idx.empty:
                 projects_df.loc[idx, milestone_to_mark] = 0
-                if all(projects_df.loc[idx, col].values[0] == 0 for col in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]):
+                if all(projects_df.loc[idx[0], col] == 0 for col in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]):
                     projects_df.loc[idx, "Paid Status"] = "Paid"
                 save_df(projects_df, FILES["projects"])
                 st.success(f"{milestone_to_mark} marked as paid.")
