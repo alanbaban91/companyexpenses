@@ -1,257 +1,223 @@
-"""
-Agency Finance & Content Calendar Dashboard • 33Studio • May 2025
-────────────────────────────────────────────────────────────────────
-• CSV‑backed editable tables
-• Compact Plotly charts for analytics
-• PDF invoice generator
-
-SET‑UP
-1. *(optional)* Create & activate a venv:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # macOS/Linux or .\\venv\\Scripts\\activate on Windows
-   ```
-2. Install dependencies:
-   ```bash
-   pip install --upgrade streamlit pandas plotly fpdf
-   ```
-3. Run the app:
-   ```bash
-   streamlit run app.py
-   ```
-"""
-
 from __future__ import annotations
-from datetime import date, time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
+import json
 
 import pandas as pd
-import streamlit as st
 import plotly.express as px
+import requests
+import streamlit as st
 from fpdf import FPDF
+from google.oauth2.service_account import Credentials
 
-# ─────────────────────────── PATHS & INITIALIZATION ─────────────────────────
+# ─────────────────────── PATHS ───────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"; DATA_DIR.mkdir(exist_ok=True)
 INV_DIR  = BASE_DIR / "invoices"; INV_DIR.mkdir(exist_ok=True)
 
-FILES: Dict[str, Path] = {name: DATA_DIR / f"{name}.csv" for name in [
-    "clients", "projects", "salaries", "expenses", "schedule"
-]}
-
-COLUMNS: Dict[str, list[str]] = {
-    "clients":  ["Client", "Contact", "Total Paid", "Total Due"],
-    "projects": ["Client", "Project", "Employee", "Base Fee", "Social Boost", "TVC", "Other", "Total", "Status", "Deadline"],
-    "salaries": ["Employee", "Role", "Salary", "Paid", "Date"],
-    "expenses": ["Category", "Amount", "Date", "Notes"],
-    "schedule": ["Client", "Platform", "Post Type", "Date", "Time", "Caption", "Asset Link"],
+FILES: Dict[str, Path] = {
+    "clients": DATA_DIR / "clients.csv",
+    "projects_milestones": DATA_DIR / "projects_milestones.csv",
+    "salaries": DATA_DIR / "salaries.csv",
+    "expenses": DATA_DIR / "expenses.csv",
 }
 
-# ensure CSVs exist with correct headers
+COLUMNS = {
+    "clients": ["Client", "Contact", "Total Paid", "Total Due"],
+    "projects_milestones": ["Client", "Project", "Employee", "Budget", "Payment 20%", "Payment 40%", "Payment 40% (2)"],
+    "salaries": ["Employee", "Role", "Salary", "Paid", "Date"],
+    "expenses": ["Category", "Amount", "Date", "Notes"],
+}
+
 for key, path in FILES.items():
     if not path.exists():
         pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
 
-# ─────────────────────────── LOAD DATA ─────────────────────────
+# ─────────────────────── LOAD DATA ───────────────────────
 clients_df  = pd.read_csv(FILES["clients"])
-projects_df = pd.read_csv(FILES["projects"], parse_dates=["Deadline"], dayfirst=True)
-salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"], dayfirst=True)
-expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"], dayfirst=True)
-schedule_df = pd.read_csv(FILES["schedule"], parse_dates=["Date"], dayfirst=True)
+projects_df = pd.read_csv(FILES["projects_milestones"])
+salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"])
+expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"])
 
-# ─────────────────────────── HELPERS ─────────────────────────
-def save_df(df: pd.DataFrame, csv: Path) -> None:
-    """Persist DataFrame to its CSV."""
-    df.to_csv(csv, index=False)
+# ─────────────────────── STREAMLIT SECRETS ───────────────────────
+try:
+    PO_USER  = st.secrets["pushover_user_key"]
+    PO_TOKEN = st.secrets["pushover_app_token"]
+except Exception:
+    PO_USER = PO_TOKEN = None
 
+def push_notify(msg):
+    st.toast(msg, icon="\U0001F514")
+    if PO_USER and PO_TOKEN:
+        try:
+            requests.post("https://api.pushover.net/1/messages.json", data={
+                "token": PO_TOKEN, "user": PO_USER, "message": msg[:1024]
+            }, timeout=5)
+        except Exception as e:
+            st.warning(f"Push failed: {e}")
 
-def add_row(df: pd.DataFrame, csv: Path, row: dict) -> None:
-    """Add new row and save."""
-    df.loc[len(df)] = row
-    save_df(df, csv)
-
-
-def money(amount: float|int) -> str:
-    """Format number as currency."""
-    return f"${amount:,.2f}"
-
-
-def editable_table(label: str, df: pd.DataFrame, csv: Path, key: str) -> pd.DataFrame:
-    """Render editable data editor and save changes."""
-    edited = st.data_editor(df, key=key, num_rows="dynamic", use_container_width=True)
-    if not edited.equals(df):
-        save_df(edited, csv)
-        st.toast(f"{label} updated", icon="✅")
-    return edited
-
-# unified rerun helper
-if hasattr(st, "rerun"):
-    _rerun = st.rerun
-elif hasattr(st, "experimental_rerun"):
-    _rerun = st.experimental_rerun
-else:
-    def _rerun():
-        st.warning("Please manually refresh the page to see updates.")
-
-# ─────────────────────────── UI CONFIG ─────────────────────────
-st.set_page_config(page_title="33Studio Dashboard", page_icon="📊", layout="wide")
-st.title("📊 33Studio — Finance & Content Dashboard")
-
+# ─────────────────────── UI & NAVIGATION ───────────────────────
+st.set_page_config("33Studio Dashboard", layout="wide")
 page = st.sidebar.radio("Navigate", [
-    "Dashboard", "Clients & Projects", "Employee Salaries",
-    "Expenses", "Social Media Calendar", "Invoice Generator", "Analytics"
+    "Dashboard", "Clients", "Projects", "Salaries", "Expenses", "Invoice Generator", "Analytics"
 ])
 
-# ─────────────────────────── PAGE: DASHBOARD ─────────────────────────
+def save_df(df, csv): df.to_csv(csv, index=False)
+def money(x): return f"${x:,.2f}"
+
+# ─────────────────────── DASHBOARD ───────────────────────
 if page == "Dashboard":
-    st.header("📈 Overview Metrics")
-    # ensure numeric types
-    for col in ("Total Paid", "Total Due"):  
-        clients_df[col] = pd.to_numeric(clients_df[col], errors="coerce").fillna(0)
-    salaries_df["Salary"] = pd.to_numeric(salaries_df["Salary"], errors="coerce").fillna(0)
-    expenses_df["Amount"] = pd.to_numeric(expenses_df["Amount"], errors="coerce").fillna(0)
+    st.header("Overview & Alerts")
+    income = clients_df["Total Paid"].sum()
+    due = clients_df["Total Due"].sum()
+    paid_sal = salaries_df.query("Paid=='Yes'")["Salary"].sum()
+    exp = expenses_df["Amount"].sum() + paid_sal
+    left = income - exp
+    for c, (lbl, val) in zip(st.columns(5), [
+        ("Income", income), ("Outstanding", due), ("Expenses", exp),
+        ("Paid Sal", paid_sal), ("Left", left)
+    ]): c.metric(lbl, money(val))
+    if st.number_input("Alert if Outstanding >", 0.0, value=1000.0) < due:
+        push_notify("Outstanding exceeds threshold!")
 
-    total_income   = clients_df["Total Paid"].sum()
-    total_due      = clients_df["Total Due"].sum()
-    paid_salaries  = salaries_df.query("Paid=='Yes'")["Salary"].sum()
-    unpaid_salaries= salaries_df.query("Paid=='No'")["Salary"].sum()
-    total_expenses = expenses_df["Amount"].sum() + paid_salaries
+# ─────────────────────── CLIENTS ───────────────────────
+elif page == "Clients":
+    st.header("Clients")
+    edited = st.data_editor(clients_df, key="clients", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(clients_df):
+        save_df(edited, FILES["clients"])
+        push_notify("Clients table updated")
 
-    cols = st.columns(5)
-    metrics = [
-        ("Income", total_income),
-        ("Outstanding", total_due),
-        ("Expenses", total_expenses),
-        ("Paid Salaries", paid_salaries),
-        ("Unpaid Salaries", unpaid_salaries)
-    ]
-    for col_box, (label, val) in zip(cols, metrics):
-        col_box.metric(label, money(val))
+# ─────────────────────── PROJECTS ───────────────────────
+elif page == "Projects":
+    st.header("Project Milestones")
 
-# ─────────────────────── PAGE: CLIENTS & PROJECTS ───────────────────────
-elif page == "Clients & Projects":
-    st.header("👥 Clients & Projects")
-    # Add client form
-    with st.form("form_add_client", clear_on_submit=True):
-        st.subheader("Add / Update Client")
-        name    = st.text_input("Client Name")
-        contact = st.text_input("Contact Info")
-        paid    = st.number_input("Total Paid", min_value=0.0)
-        due     = st.number_input("Total Due", min_value=0.0)
-        if st.form_submit_button("Save Client"):
-            add_row(clients_df, FILES["clients"], {"Client": name, "Contact": contact, "Total Paid": paid, "Total Due": due})
-            _rerun()
-    clients_df = editable_table("Clients", clients_df, FILES["clients"], "edit_clients")
+    def auto_calc(row):
+        try:
+            budget = float(row["Budget"])
+            row["Payment 20%"] = round(budget * 0.20, 2)
+            row["Payment 40%"] = round(budget * 0.40, 2)
+            row["Payment 40% (2)"] = round(budget * 0.40, 2)
+        except: pass
+        return row
 
-    st.divider()
-    st.subheader("Add Project")
-    if clients_df.empty:
-        st.info("Please add at least one client first.")
-    else:
-        with st.form("form_add_project", clear_on_submit=True):
-            cl    = st.selectbox("Client", clients_df["Client"].unique())
-            proj  = st.text_input("Project Name")
-            emp   = st.text_input("Assigned Employee")
-            base  = st.number_input("Base Fee", min_value=0.0)
-            boost = st.number_input("Social Boost", min_value=0.0)
-            tvc   = st.number_input("TVC Budget", min_value=0.0)
-            other = st.number_input("Other Fees", min_value=0.0)
-            status= st.selectbox("Status", ["Not started","In Progress","Completed"])
-            ddl   = st.date_input("Deadline", value=date.today())
-            if st.form_submit_button("Save Project"):
-                total = base + boost + tvc + other
-                add_row(projects_df, FILES["projects"], {"Client":cl, "Project":proj, "Employee":emp, "Base Fee":base, "Social Boost":boost, "TVC":tvc, "Other":other, "Total":total, "Status":status, "Deadline":ddl})
-                _rerun()
-    projects_df = editable_table("Projects", projects_df, FILES["projects"], "edit_projects")
+    projects_df = projects_df.apply(auto_calc, axis=1)
+    edited = st.data_editor(projects_df, key="milestones", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(projects_df):
+        save_df(edited, FILES["projects_milestones"])
+        push_notify("Projects table updated")
 
-# ───────────────────── PAGE: EMPLOYEE SALARIES ─────────────────────
-elif page == "Employee Salaries":
-    st.header("💼 Employee Salaries")
-    with st.form("form_add_salary", clear_on_submit=True):
-        emp_name = st.text_input("Employee Name")
-        role     = st.text_input("Role")
-        salary   = st.number_input("Salary", min_value=0.0)
-        paid     = st.selectbox("Paid?", ["No","Yes"])
-        sdate    = st.date_input("Date", value=date.today())
-        if st.form_submit_button("Save Salary"):
-            add_row(salaries_df, FILES["salaries"], {"Employee":emp_name, "Role":role, "Salary":salary, "Paid":paid, "Date":sdate})
-            _rerun()
-    salaries_df = editable_table("Salaries", salaries_df, FILES["salaries"], "edit_salaries")
+    if st.button("\U0001F4E6 Close Month & Archive"):
+        archive_path = DATA_DIR / f"milestones_{datetime.now():%Y_%m}.csv"
+        save_df(projects_df, archive_path)
+        pd.DataFrame(columns=COLUMNS["projects_milestones"]).to_csv(FILES["projects_milestones"], index=False)
+        st.success(f"Archived to {archive_path.name} and reset new month.")
 
-# ───────────────────────── PAGE: EXPENSES ─────────────────────────
+# ─────────────────────── SALARIES ───────────────────────
+elif page == "Salaries":
+    st.header("Salaries")
+    edited = st.data_editor(salaries_df, key="salaries", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(salaries_df):
+        save_df(edited, FILES["salaries"])
+        push_notify("Salaries updated")
+
+# ─────────────────────── EXPENSES ───────────────────────
 elif page == "Expenses":
-    st.header("💸 Monthly Expenses")
-    with st.form("form_add_expense", clear_on_submit=True):
-        category = st.text_input("Category")
-        amount   = st.number_input("Amount", min_value=0.0)
-        edate    = st.date_input("Date", value=date.today())
-        notes    = st.text_area("Notes")
-        if st.form_submit_button("Save Expense"):
-            add_row(expenses_df, FILES["expenses"], {"Category":category, "Amount":amount, "Date":edate, "Notes":notes})
-            _rerun()
-    expenses_df = editable_table("Expenses", expenses_df, FILES["expenses"], "edit_expenses")
+    st.header("Expenses")
+    edited = st.data_editor(expenses_df, key="expenses", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(expenses_df):
+        save_df(edited, FILES["expenses"])
+        push_notify("Expenses updated")
 
-# ───────────────────── PAGE: SOCIAL MEDIA CALENDAR ─────────────────────
-elif page == "Social Media Calendar":
-    st.header("📆 Social-Media Calendar")
-    if clients_df.empty:
-        st.info("Add a client first to schedule posts.")
-    else:
-        with st.form("form_add_post", clear_on_submit=True):
-            cl    = st.selectbox("Client", clients_df["Client"].unique())
-            plat  = st.selectbox("Platform", ["Instagram","Facebook","TikTok","LinkedIn"])
-            ptype = st.text_input("Post Type")
-            pdate = st.date_input("Date", value=date.today())
-            ptime = st.time_input("Time", value=time(9,0))
-            caption = st.text_area("Caption")
-            link    = st.text_input("Asset Link (optional)")
-            if st.form_submit_button("Schedule Post"):
-                add_row(schedule_df, FILES["schedule"], {"Client":cl, "Platform":plat, "Post Type":ptype, "Date":pdate, "Time":ptime.strftime("%H:%M:%S"), "Caption":caption, "Asset Link":link})
-                _rerun()
-    schedule_df = editable_table("Schedule", schedule_df, FILES["schedule"], "edit_schedule")
+# ─────────────────────── INVOICE PDF CREATION ───────────────────────
+class InvoicePDF(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 16)
+        self.cell(0, 10, "33Studio Creative Agency", ln=True, align="L")
+        self.set_font("Helvetica", "", 10)
+        self.cell(0, 5, "Erbil, Kurdistan Region, Iraq", ln=True, align="L")
+        self.cell(0, 5, "Email: hello@33studio.org", ln=True, align="L")
+        self.ln(10)
 
-# ───────────────────── PAGE: INVOICE GENERATOR ─────────────────────
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+
+    def invoice_body(self, client, project, budget, payment_due, issue_date):
+        self.set_font("Helvetica", "B", 12)
+        self.cell(0, 10, f"Invoice for {client}", ln=True)
+        self.set_font("Helvetica", "", 10)
+        self.cell(100, 6, f"Project: {project}", ln=True)
+        self.cell(100, 6, f"Issue Date: {issue_date}", ln=True)
+        self.cell(100, 6, f"Due Amount: ${payment_due:,.2f}", ln=True)
+        self.cell(100, 6, f"Total Project Budget: ${budget:,.2f}", ln=True)
+        self.ln(10)
+
+        self.set_font("Helvetica", "B", 10)
+        self.cell(100, 8, "Description", border=1)
+        self.cell(40, 8, "Amount", border=1, ln=True)
+
+        self.set_font("Helvetica", "", 10)
+        self.cell(100, 8, "Milestone Payment", border=1)
+        self.cell(40, 8, f"${payment_due:,.2f}", border=1, ln=True)
+
+        self.ln(10)
+        self.cell(100, 6, "Please make the payment by the due date.", ln=True)
+
+
+def create_invoice_pdf(client, project, employee, budget, due_amount):
+    pdf = InvoicePDF()
+    pdf.add_page()
+    pdf.invoice_body(client, project, budget, due_amount, datetime.today().strftime("%Y-%m-%d"))
+
+    filename = INV_DIR / f"Invoice_{client.replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
+    pdf.output(filename)
+    return filename
+
+# ─────────────────────── INVOICE GENERATOR ───────────────────────
 elif page == "Invoice Generator":
-    st.header("🧾 Invoice Generator")
-    if projects_df.empty:
-        st.info("No projects available. Please add a project first.")
-    else:
-        client_sel = st.selectbox("Client", projects_df["Client"].unique())
-        proj_sel   = st.selectbox("Project", projects_df[projects_df["Client"]==client_sel]["Project"].unique())
-        if st.button("Generate Invoice"):            
-            filtered = projects_df[(projects_df["Client"]==client_sel) & (projects_df["Project"]==proj_sel)]
-            if filtered.empty:
-                st.error("Selected project not found.")
-            else:
-                row = filtered.iloc[0]
-                pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial","B",16)
-                pdf.cell(0,10,"INVOICE",ln=True,align="C"); pdf.ln(5)
-                pdf.set_font("Arial",size=12)
-                for col,val in row.items(): pdf.multi_cell(0,8,f"{col}: {val}")
-                fname = f"invoice_{client_sel}_{proj_sel}.pdf".replace(" ","_")
-                fpath = INV_DIR / fname
-                pdf.output(str(fpath))
-                with open(fpath,"rb") as f: st.download_button("Download Invoice", f, file_name=fname, mime="application/pdf")
-                st.success("Invoice created.")
+    st.header("\U0001F4C4 Generate Invoice")
+    milestone_df = pd.read_csv(FILES["projects_milestones"])
 
-# ───────────────────── PAGE: ANALYTICS ─────────────────────
+    if milestone_df.empty:
+        st.warning("No projects found.")
+    else:
+        client = st.selectbox("Select Client", milestone_df["Client"].unique())
+        filtered = milestone_df[milestone_df["Client"] == client]
+        project = st.selectbox("Select Project", filtered["Project"].unique())
+        selected = filtered[filtered["Project"] == project].iloc[0]
+
+        due_amount = 0
+        if selected["Payment 20%"] != 0:
+            due_amount = selected["Payment 20%"]
+            label = "20% milestone"
+        elif selected["Payment 40%"] != 0:
+            due_amount = selected["Payment 40%"]
+            label = "First 40% milestone"
+        elif selected["Payment 40% (2)"] != 0:
+            due_amount = selected["Payment 40% (2)"]
+            label = "Final 40% milestone"
+        else:
+            st.success("✅ All payments completed for this project.")
+            st.stop()
+
+        st.write(f"Next Payment Due: **{label}** - ${due_amount:,.2f}")
+        if st.button("\U0001F9FE Generate Invoice"):
+            path = create_invoice_pdf(
+                client=selected["Client"],
+                project=selected["Project"],
+                employee=selected["Employee"],
+                budget=float(selected["Budget"]),
+                due_amount=float(due_amount)
+            )
+            st.success("Invoice generated!")
+            st.download_button("\U0001F4E5 Download Invoice", open(path, "rb"), file_name=path.name)
+
+# ─────────────────────── ANALYTICS ───────────────────────
 elif page == "Analytics":
-    st.header("📊 Analytics Charts")
-    # small bar chart income vs expenses
-    inc = clients_df["Total Paid"].sum()
-    exp_total = expenses_df["Amount"].sum() + salaries_df.query("Paid=='Yes'")["Salary"].sum()
-    fig1 = px.bar(x=["Income","Expenses"], y=[inc,exp_total], title="Income vs Expenses", width=350, height=300)
-    # pie chart expense breakdown
-    fig2, fig3 = None, None
-    if not expenses_df.empty:
-        brk = expenses_df.groupby("Category")["Amount"].sum()
-        fig2 = px.pie(values=brk.values, names=brk.index, hole=0.4, title="Expense Breakdown", width=350, height=300)
-    # donut chart project status
-    if not projects_df.empty:
-        sts = projects_df["Status"].value_counts()
-        fig3 = px.pie(values=sts.values, names=sts.index, hole=0.5, title="Project Status", width=350, height=300)
-    cols = st.columns(3)
-    cols[0].plotly_chart(fig1, use_container_width=False)
-    if fig2: cols[1].plotly_chart(fig2, use_container_width=False)
-    if fig3: cols[2].plotly_chart(fig3, use_container_width=False)
+    st.header("Client Payments Chart")
+    if not clients_df.empty:
+        fig = px.bar(clients_df, x="Client", y="Total Paid", title="Payments by Client")
+        st.plotly_chart(fig, use_container_width=True)
