@@ -74,6 +74,64 @@ if page == "Dashboard":
         ("Unpaid Salaries", unpaid_salaries)
     ]): c.metric(label, money(val))
 
+
+elif page == "Monthly Plans":
+    st.header("📅 Monthly Payment Plans")
+    monthly_file = FILES.get("monthly", DATA_DIR / "monthly.csv")
+    monthly_cols = ["Client", "Amount", "Payment Method", "Social Media Budget", "Paid", "Month"]
+
+    if not monthly_file.exists():
+        pd.DataFrame(columns=monthly_cols).to_csv(monthly_file, index=False)
+
+    monthly_df = pd.read_csv(monthly_file)
+
+    with st.form("add_monthly", clear_on_submit=True):
+        st.subheader("Add Monthly Plan")
+        client = st.selectbox("Client", clients_df["Client"].unique())
+        amount = st.number_input("Payment Amount", 0.0)
+        method = st.selectbox("Payment Method", ["Fast Pay", "Zain Cash", "FIB", "Money Transfer", "Bank Transfer"])
+        sm_budget = st.checkbox("Includes Social Media Sponsorship Budget")
+        paid = st.selectbox("Is Paid?", ["No", "Yes"])
+        if st.form_submit_button("Save Monthly Plan"):
+            new_row = {
+                "Client": client,
+                "Amount": amount,
+                "Payment Method": method,
+                "Social Media Budget": "Yes" if sm_budget else "No",
+                "Paid": paid,
+                "Month": date.today().strftime("%B %Y")
+            }
+            monthly_df.loc[len(monthly_df)] = new_row
+            monthly_df.to_csv(monthly_file, index=False)
+            st.success("Monthly Plan saved.")
+            st.rerun()
+
+    st.subheader("📋 Current Month Summary")
+    st.dataframe(monthly_df[monthly_df["Month"] == date.today().strftime("%B %Y")])
+    
+# ─────────────────────── Monthly Plans ───────────────────────
+    unpaid = monthly_df[(monthly_df["Paid"] == "No") & (monthly_df["Month"] == date.today().strftime("%B %Y"))]
+    if not unpaid.empty:
+        st.subheader("🚨 Unpaid Clients")
+        for i, row in unpaid.iterrows():
+            with st.expander(f"{row['Client']} — ${row['Amount']:.2f}"):
+                if st.button(f"📄 Generate Payment Request — {row['Client']}", key=f"invoice_{i}"):
+                    pdf = InvoicePDF()
+                    pdf.add_page()
+                    pdf.set_font("Helvetica", "", 11)
+                    pdf.cell(0, 10, f"Payment Request for {row['Client']}", ln=True)
+                    pdf.cell(0, 10, f"Amount Due: ${row['Amount']:.2f}", ln=True)
+                    pdf.cell(0, 10, f"Payment Method: {row['Payment Method']}", ln=True)
+                    pdf.cell(0, 10, f"Due Date: 28 {row['Month']}", ln=True)
+                    pdf.ln(5)
+                    pdf.cell(0, 10, "Please make the payment by the due date.", ln=True)
+                    filename = f"MonthlyInvoice_{row['Client'].replace(' ', '_')}_{row['Month'].replace(' ', '_')}.pdf"
+                    path = INV_DIR / filename
+                    pdf.output(str(path))
+                    st.download_button("📥 Download PDF", open(path, "rb"), file_name=filename)
+                    st.success("PDF Created")
+
+
 # ─────────────────────── CLIENTS & PROJECTS ───────────────────────
 elif page == "Clients & Projects":
     st.header("👥 Clients & Projects")
