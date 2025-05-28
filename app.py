@@ -193,18 +193,20 @@ if page == "Invoice Generator":
         project = st.selectbox("Project", filtered["Project"].unique())
         selected = filtered[filtered["Project"] == project].iloc[0]
 
+        milestone_label = None
+        amount = 0
         for milestone in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]:
-            if selected[milestone] != 0:
-                label = milestone
+            if milestone in selected and pd.notnull(selected[milestone]) and selected[milestone] != 0:
+                milestone_label = milestone
                 amount = selected[milestone]
                 break
-        else:
+        if milestone_label is None:
             st.success("✅ All payments completed.")
             st.stop()
 
-        st.write(f"Next payment due: **{label}** — ${amount:,.2f}")
+        st.write(f"Next payment due: **{milestone_label}** — ${amount:,.2f}")
         if st.button("Generate Invoice"):
-            fpath = create_invoice_pdf(selected, label, amount)
+            fpath = create_invoice_pdf(selected, milestone_label, amount)
             st.download_button("Download Invoice", open(fpath, "rb"), file_name=fpath.name)
             st.success("Invoice generated.")
 
