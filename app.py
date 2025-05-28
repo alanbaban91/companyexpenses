@@ -174,7 +174,7 @@ elif page == "Analytics":
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
     st.write("Generate invoices manually or track monthly payment plans.")
-    # Placeholder logic here to later expand
+    # Future implementation for generating invoices on-demand
 
 elif page == "Monthly Plans":
     st.header("📅 Monthly Payment Plans")
@@ -213,9 +213,12 @@ elif page == "Monthly Plans":
                     pdf.monthly_invoice(row)
                     filename = f"MonthlyInvoice_{row['Client'].replace(' ', '_')}_{row['Month'].replace(' ', '_')}.pdf"
                     path = INV_DIR / filename
-                    pdf.output(str(path))
-                    st.download_button("📥 Download PDF", open(path, "rb"), file_name=filename)
-                    st.success("PDF Created")
+                    try:
+                        pdf.output(name=str(path))
+                        st.download_button("📥 Download PDF", open(path, "rb"), file_name=filename)
+                        st.success("PDF Created")
+                    except Exception as e:
+                        st.error(f"PDF generation failed: {e}")
 
     st.divider()
     st.subheader("✏️ Edit Monthly Plans")
