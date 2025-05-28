@@ -161,7 +161,7 @@ def create_invoice_pdf(client, project, employee, budget, due_amount):
     pdf.output(filename)
     return filename
 
-elif page == "Invoice Generator":
+if page == "Invoice Generator":
     st.header("\U0001F4C4 Generate Invoice")
     milestone_df = pd.read_csv(FILES["projects_milestones"])
 
