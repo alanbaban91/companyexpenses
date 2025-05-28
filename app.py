@@ -117,64 +117,18 @@ elif page == "Projects":
 # ─────────────────────── SALARIES ───────────────────────
 elif page == "Salaries":
     st.header("Salaries")
-    edited = st.data_editor(salaries_df, key="salaries", num_rows="dynamic", use_container_width=True)
-    if not edited.equals(salaries_df):
+    edited = st.data_editor(salar_df := salaries_df.copy(), key="salaries", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(salar_df):
         save_df(edited, FILES["salaries"])
         push_notify("Salaries updated")
 
 # ─────────────────────── EXPENSES ───────────────────────
 elif page == "Expenses":
     st.header("Expenses")
-    edited = st.data_editor(expenses_df, key="expenses", num_rows="dynamic", use_container_width=True)
-    if not edited.equals(expenses_df):
+    edited = st.data_editor(exp_df := expenses_df.copy(), key="expenses", num_rows="dynamic", use_container_width=True)
+    if not edited.equals(exp_df):
         save_df(edited, FILES["expenses"])
         push_notify("Expenses updated")
-
-# ─────────────────────── INVOICE PDF CREATION ───────────────────────
-class InvoicePDF(FPDF):
-    def header(self):
-        self.set_font("Helvetica", "B", 16)
-        self.cell(0, 10, "33Studio Creative Agency", ln=True, align="L")
-        self.set_font("Helvetica", "", 10)
-        self.cell(0, 5, "Erbil, Kurdistan Region, Iraq", ln=True, align="L")
-        self.cell(0, 5, "Email: hello@33studio.org", ln=True, align="L")
-        self.ln(10)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
-        self.cell(0, 10, f"Page {self.page_no()}", align="C")
-
-    def invoice_body(self, client, project, budget, payment_due, issue_date):
-        self.set_font("Helvetica", "B", 12)
-        self.cell(0, 10, f"Invoice for {client}", ln=True)
-        self.set_font("Helvetica", "", 10)
-        self.cell(100, 6, f"Project: {project}", ln=True)
-        self.cell(100, 6, f"Issue Date: {issue_date}", ln=True)
-        self.cell(100, 6, f"Due Amount: ${payment_due:,.2f}", ln=True)
-        self.cell(100, 6, f"Total Project Budget: ${budget:,.2f}", ln=True)
-        self.ln(10)
-
-        self.set_font("Helvetica", "B", 10)
-        self.cell(100, 8, "Description", border=1)
-        self.cell(40, 8, "Amount", border=1, ln=True)
-
-        self.set_font("Helvetica", "", 10)
-        self.cell(100, 8, "Milestone Payment", border=1)
-        self.cell(40, 8, f"${payment_due:,.2f}", border=1, ln=True)
-
-        self.ln(10)
-        self.cell(100, 6, "Please make the payment by the due date.", ln=True)
-
-
-def create_invoice_pdf(client, project, employee, budget, due_amount):
-    pdf = InvoicePDF()
-    pdf.add_page()
-    pdf.invoice_body(client, project, budget, due_amount, datetime.today().strftime("%Y-%m-%d"))
-
-    filename = INV_DIR / f"Invoice_{client.replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
-    pdf.output(filename)
-    return filename
 
 # ─────────────────────── INVOICE GENERATOR ───────────────────────
 elif page == "Invoice Generator":
