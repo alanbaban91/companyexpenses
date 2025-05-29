@@ -256,3 +256,20 @@ elif page == "📁 View Archives":
     if selected:
         df = pd.read_csv(ARCHIVE_DIR / selected)
         st.dataframe(df, use_container_width=True)
+                if "DueDate" in df.columns:
+            st.markdown("---")
+            st.subheader("📅 Upcoming Payments from Archive")
+            try:
+                df["DueDate"] = pd.to_datetime(df["DueDate"], errors="coerce")
+                upcoming = df[(df["Paid"] != "Yes") & (df["DueDate"] >= datetime.today()) & (df["DueDate"] <= datetime.today() + timedelta(days=7))]
+                if not upcoming.empty:
+                    for _, row in upcoming.iterrows():
+                        due_in_days = (row["DueDate"] - datetime.today()).days
+                        urgency = "🔴 Urgent" if due_in_days <= 2 else "🟠 Soon"
+                        st.markdown(f"**{row['Client']}** — {money(row['Amount'])} via {row['Payment Method']} ({urgency})")
+                        st.info(f"Archived Reminder: {row['Client']} owes {money(row['Amount'])} due on {row['DueDate'].strftime('%Y-%m-%d')}")
+                else:
+                    st.info("✅ No upcoming payments in this archive.")
+            except Exception as e:
+                st.error(f"Failed to parse due dates in archive: {e}")
+
