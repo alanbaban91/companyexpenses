@@ -71,6 +71,7 @@ class InvoicePDF(FPDF):
         self.multi_cell(0, 10, f"Payment Request for {row['Client']}\nAmount Due: ${row['Amount']:.2f}\nPayment Method: {row['Payment Method']}\nDue Date: 28 {row['Month']}\n\nPlease make the payment by the due date.")
 
 # ─────────────────────── ROUTING ───────────────────────
+st.write("📄 Loaded Page:", page)
 if page == "Dashboard":
     st.header("📈 Overview Metrics")
     clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
