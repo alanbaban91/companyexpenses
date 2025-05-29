@@ -22,16 +22,16 @@ FILES: Dict[str, Path] = {
     "salaries": DATA_DIR / "salaries.csv",
     "expenses": DATA_DIR / "expenses.csv",
     "monthly": DATA_DIR / "monthly.csv",
-    "users": DATA_DIR / "users.csv"
+    "users": DATA_DIR / "users.csv",
 }
 
 COLUMNS: Dict[str, List[str]] = {
-    "clients":  ["Client", "Contact", "Total Paid", "Total Due"],
+    "clients": ["Client", "Contact", "Total Paid", "Total Due"],
     "projects": ["Client", "Project", "Employee", "Budget", "Payment 20%", "Payment 40%", "Payment 40% (2)", "Paid Status"],
     "salaries": ["Employee", "Role", "Salary", "Paid", "Date"],
     "expenses": ["Category", "Amount", "Date", "Notes"],
-    "monthly":  ["Client", "Amount", "Payment Method", "Social Media Budget", "Paid", "Month", "DueDate"],
-    "users": ["Username", "Password", "Role"]
+    "monthly": ["Client", "Amount", "Payment Method", "Social Media Budget", "Paid", "Month", "DueDate"],
+    "users": ["Username", "Password", "Role"],
 }
 
 for key, path in FILES.items():
@@ -39,10 +39,10 @@ for key, path in FILES.items():
         pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
 
 # ──────────────────── Authentication ────────────────────
-def hash_password(password):
+def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-def check_credentials(username, password):
+def check_credentials(username: str, password: str) -> tuple[bool, str | None]:
     users_df = pd.read_csv(FILES["users"])
     if username in users_df["Username"].values:
         record = users_df[users_df["Username"] == username].iloc[0]
@@ -52,12 +52,14 @@ def check_credentials(username, password):
 
 st.set_page_config("33Studio Finance Dashboard", layout="wide")
 
+# Initialize session state for authentication
 if "auth" not in st.session_state:
     st.session_state.auth = False
-    st.session_state.role = None
-    st.session_state.username = ""
-    st.session_state.last_active = datetime.now()
+    st.session_state.role: str | None = None
+    st.session_state.username: str = ""
+    st.session_state.last_active: datetime = datetime.now()
 
+# Login flow
 if not st.session_state.auth:
     with st.form("Login"):
         user = st.text_input("Username")
@@ -70,20 +72,22 @@ if not st.session_state.auth:
                 st.session_state.role = role
                 st.session_state.username = user
                 st.session_state.last_active = datetime.now()
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Invalid credentials")
     st.stop()
 
+# Auto logout after 15 minutes of inactivity
 if datetime.now() - st.session_state.last_active > timedelta(minutes=15):
     st.session_state.auth = False
-    st.experimental_rerun()
+    st.rerun()
 else:
     st.session_state.last_active = datetime.now()
 
+# Logout button
 if st.button("🔒 Logout"):
     st.session_state.auth = False
-    st.experimental_rerun()
+    st.rerun()
 
 # ───────────────────── Load Data ─────────────────────
 clients_df = pd.read_csv(FILES["clients"])
@@ -105,125 +109,181 @@ class InvoicePDF(FPDF):
         self.set_font("Arial", "B", 14)
         self.cell(0, 10, "Invoice", ln=True, align="C")
         self.ln(5)
+
     def footer(self):
         self.set_y(-15)
         self.set_font("Arial", "I", 8)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
-    def cell_safe(self, w, h, txt, **kwargs):
+
+    def cell_safe(self, w: float, h: float, txt: str, **kwargs) -> None:
         safe = txt.encode("latin-1", "replace").decode("latin-1")
         self.cell(w, h, safe, **kwargs)
 
 # ───────────────────── UI Pages ─────────────────────
-pages = ["Dashboard", "Clients", "Projects", "Salaries", "Expenses", "Monthly Plans", "Invoice Generator", "View Archives"]
+pages = [
+    "Dashboard",
+    "Clients",
+    "Projects",
+    "Salaries",
+    "Expenses",
+    "Monthly Plans",
+    "Invoice Generator",
+    "View Archives",
+]
+# Add Admin Panel only for admins
 if st.session_state.role == "admin":
     pages.append("Admin Panel")
+
 page = st.sidebar.radio("Navigate", pages)
 
+## Dashboard
 if page == "Dashboard":
     st.header("📊 Dashboard Overview")
-    inc = clients_df["Total Paid"].fillna(0).sum()
-    out = clients_df["Total Due"].fillna(0).sum()
+    inc = clients_df["Total Paid"].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
+    out = clients_df["Total Due"].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
     paid_sal = salaries_df[salaries_df["Paid"] == "Yes"]["Salary"].sum()
     exp = expenses_df["Amount"].sum() + paid_sal
 
     cols = st.columns(4)
-    cols[0].metric("Income", money(inc))
+    cols[0].metric("Total Income", money(inc))
     cols[1].metric("Outstanding", money(out))
     cols[2].metric("Paid Salaries", money(paid_sal))
     cols[3].metric("Expenses", money(exp))
 
     st.markdown("---")
     st.subheader("📅 Upcoming Payments")
-    upcoming = monthly_df[(monthly_df["Paid"] != "Yes") & (monthly_df["DueDate"] >= datetime.today()) & (monthly_df["DueDate"] <= datetime.today() + timedelta(days=7))]
+    upcoming = monthly_df[
+        (monthly_df["Paid"] != "Yes") &
+        (monthly_df["DueDate"] >= datetime.today()) &
+        (monthly_df["DueDate"] <= datetime.today() + timedelta(days=7))
+    ]
     if not upcoming.empty:
         for _, row in upcoming.iterrows():
-            due_days = (row["DueDate"] - datetime.today()).days
-            urgency = "🔴 Urgent" if due_days <= 2 else "🟠 Soon"
-            st.markdown(f"**{row['Client']}** — {money(row['Amount'])} ({urgency}) due {row['DueDate'].strftime('%Y-%m-%d')}")
+            days = (row["DueDate"] - datetime.today()).days
+            urgency = "🔴 Urgent" if days <= 2 else "🟠 Soon"
+            st.markdown(
+                f"**{row['Client']}** — {money(row['Amount'])} ({urgency}) due {row['DueDate'].strftime('%Y-%m-%d')}"
+            )
     else:
         st.info("✅ No upcoming payments.")
 
-if page == "Clients":
+## Clients
+elif page == "Clients":
     st.header("👤 Clients")
-    st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="edit_clients")
+    clients_df = st.data_editor(
+        clients_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="edit_clients",
+    )
     if st.button("💾 Save Clients"):
         save_df(clients_df, FILES["clients"])
-        st.success("Saved.")
+        st.success("Clients saved.")
 
-if page == "Projects":
+## Projects
+elif page == "Projects":
     st.header("📂 Projects")
-    st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="edit_projects")
-    if st.button("💾 Save Projects"):
+    projects_df = st.data_editor(
+        projects_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="edit_projects",
+    )
+    col1, col2 = st.columns([1, 1])
+    if col1.button("💾 Save Projects"):
         save_df(projects_df, FILES["projects"])
-        st.success("Saved.")
+        st.success("Projects saved.")
+    if col2.button("📦 Archive Projects"):
+        mth = datetime.today().strftime("%B_%Y")
+        projects_df.to_csv(ARCHIVE_DIR / f"projects_{mth}.csv", index=False)
+        st.success("Projects archived.")
 
-if page == "Salaries":
-    st.header("👥 Employee Salaries")
-    st.data_editor(salaries_df, num_rows="dynamic", use_container_width=True, key="edit_salaries")
+## Salaries
+elif page == "Salaries":
+    st.header("💼 Employee Salaries")
+    salaries_df = st.data_editor(
+        salaries_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="edit_salaries",
+    )
     if st.button("💾 Save Salaries"):
         save_df(salaries_df, FILES["salaries"])
-        st.success("Saved.")
+        st.success("Salaries saved.")
 
-if page == "Expenses":
+## Expenses
+elif page == "Expenses":
     st.header("💸 Expenses")
-    st.data_editor(expenses_df, num_rows="dynamic", use_container_width=True, key="edit_expenses")
+    expenses_df = st.data_editor(
+        expenses_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="edit_expenses",
+    )
     if st.button("💾 Save Expenses"):
         save_df(expenses_df, FILES["expenses"])
-        st.success("Saved.")
+        st.success("Expenses saved.")
 
-if page == "Monthly Plans":
+## Monthly Plans
+elif page == "Monthly Plans":
     st.header("📆 Monthly Plans")
-    st.data_editor(monthly_df, num_rows="dynamic", use_container_width=True, key="edit_month")
-    if st.button("💾 Save Monthly"):
+    monthly_df = st.data_editor(
+        monthly_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="edit_monthly",
+    )
+    if st.button("💾 Save Monthly Plans"):
         save_df(monthly_df, FILES["monthly"])
-        st.success("Saved.")
+        st.success("Monthly plans saved.")
 
-if page == "Invoice Generator":
+## Invoice Generator
+elif page == "Invoice Generator":
     st.header("🧾 Generate Invoice")
     if projects_df.empty:
         st.warning("No project data available.")
     else:
         client = st.selectbox("Client", projects_df["Client"].unique())
-        filtered = projects_df[projects_df["Client"] == client]
-        project = st.selectbox("Project", filtered["Project"].unique())
-        selected = filtered[filtered["Project"] == project].iloc[0]
+        subset = projects_df[projects_df["Client"] == client]
+        project = st.selectbox("Project", subset["Project"].unique())
+        sel = subset[subset["Project"] == project].iloc[0]
         for label in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]:
-            if pd.notnull(selected[label]) and selected[label] > 0:
-                st.write(f"Next Milestone: **{label}** — {money(selected[label])}")
+            if pd.notnull(sel[label]) and sel[label] > 0:
+                st.write(f"Next Milestone: **{label}** — {money(sel[label])}")
                 if st.button("Generate Invoice"):
                     pdf = InvoicePDF()
                     pdf.add_page()
                     pdf.set_font("Arial", size=12)
-                    pdf.cell_safe(0, 10, f"Invoice for {selected['Client']}: {label}", ln=True)
-                    pdf.cell_safe(0, 10, f"Project: {selected['Project']} | Amount: {money(selected[label])}", ln=True)
-                    fname = f"Invoice_{selected['Client'].replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
+                    pdf.cell_safe(0, 10, f"Invoice for {sel['Client']}: {label}", ln=True)
+                    pdf.cell_safe(0, 10, f"Project: {sel['Project']} | Amount: {money(sel[label])}", ln=True)
+                    fname = f"Invoice_{sel['Client'].replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
                     fpath = INV_DIR / fname
                     pdf.output(str(fpath))
                     st.download_button("Download Invoice", open(fpath, "rb"), file_name=fname)
                 break
 
-if page == "View Archives":
+## View Archives
+elif page == "View Archives":
     st.header("📁 View Archives")
-    files = sorted(ARCHIVE_DIR.glob("*.csv"), reverse=True)
-    selected = st.selectbox("Select Archive File", [f.name for f in files])
-    if selected:
-        df = pd.read_csv(ARCHIVE_DIR / selected)
-        st.dataframe(df, use_container_width=True)
+    archive_files = sorted(ARCHIVE_DIR.glob("*.csv"), reverse=True)
+    sel = st.selectbox("Select Archive File", [f.name for f in archive_files])
+    if sel:
+        df_archive = pd.read_csv(ARCHIVE_DIR / sel)
+        st.dataframe(df_archive, use_container_width=True)
 
-if page == "Admin Panel" and st.session_state.role == "admin":
-    st.header("🔐 Admin Panel")
-    st.dataframe(users_df.drop(columns=["Password"]))
-    new_user = st.text_input("New Username")
-    new_pwd = st.text_input("New Password", type="password")
-    new_role = st.selectbox("Role", ["admin", "viewer"])
-    if st.button("Add User"):
-        if new_user and new_pwd:
-            new_entry = pd.DataFrame([[new_user, hash_password(new_pwd), new_role]], columns=COLUMNS["users"])
-            users_df = pd.concat([users_df, new_entry], ignore_index=True)
-            save_df(users_df, FILES["users"])
-            st.success("User added.")
-    del_user = st.text_input("Delete Username")
-    if st.button("Delete User"):
-        users_df = users_df[users_df["Username"] != del_user]
+## Admin Panel
+elif page == "Admin Panel" and st.session_state.role == "admin":
+    st.header("🔐 Admin Panel: Manage Users")
+    users_df = st.data_editor(
+        users_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="edit_users",
+    )
+    if st.button("💾 Save Users"):
+        # Hash passwords if not already hashed
+        users_df["Password"] = users_df["Password"].apply(
+            lambda p: hash_password(p) if len(p) != 64 else p
+        )
         save_df(users_df, FILES["users"])
-        st.warning("User deleted.")
+        st.success("Users updated.")
