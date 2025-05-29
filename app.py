@@ -32,23 +32,19 @@ COLUMNS: Dict[str, List[str]] = {
     "monthly":  ["Client", "Amount", "Payment Method", "Social Media Budget", "Paid", "Month"],
 }
 
-# Ensure CSVs exist
 for key, path in FILES.items():
     if not path.exists():
         pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
 
-# Load DataFrames
 clients_df  = pd.read_csv(FILES["clients"])
 projects_df = pd.read_csv(FILES["projects"])
 salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"], dayfirst=True)
 expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"], dayfirst=True)
 monthly_df  = pd.read_csv(FILES["monthly"])
 
-# Streamlit Config
 st.set_page_config("33Studio Finance Dashboard", layout="wide")
 st.title("33Studio Finance Dashboard")
 
-# Rerun Shim
 if hasattr(st, "rerun"):
     _rerun = st.rerun
 elif hasattr(st, "experimental_rerun"):
@@ -57,7 +53,6 @@ else:
     def _rerun():
         raise RuntimeError("Please refresh the page to see updates.")
 
-# Navigation
 pages = [
     "Dashboard", "Clients & Projects", "Employee Salaries",
     "Expenses", "Invoice Generator", "Analytics", "Monthly Plans",
@@ -66,7 +61,6 @@ pages = [
 page = st.sidebar.radio("Navigate", pages)
 
 # Helpers
-
 def save_df(df: pd.DataFrame, path: Path) -> None:
     df.to_csv(path, index=False)
 
@@ -89,7 +83,7 @@ class InvoicePDF(FPDF):
 # ───────────────────── Pages ─────────────────────
 if page == "Dashboard":
     st.header("Overview Metrics")
-    clients_df[["Total Paid","Total Due"]] = clients_df[["Total Paid","Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
+    clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
     salaries_df["Salary"] = pd.to_numeric(salaries_df["Salary"], errors="coerce").fillna(0)
     expenses_df["Amount"] = pd.to_numeric(expenses_df["Amount"], errors="coerce").fillna(0)
     inc = clients_df["Total Paid"].sum()
@@ -104,160 +98,107 @@ if page == "Dashboard":
 
 elif page == "Clients & Projects":
     st.header("Clients & Projects")
-    with st.expander("Add Client"):
-        with st.form("add_client", clear_on_submit=True):
-            n = st.text_input("Name")
-            c = st.text_input("Contact")
-            p = st.number_input("Paid", 0.0)
-            d = st.number_input("Due", 0.0)
-            if st.form_submit_button("Save"):
-                clients_df.loc[len(clients_df)] = [n, c, p, d]
-                save_df(clients_df, FILES["clients"])
-                _rerun()
-    cf = st.data_editor(clients_df, use_container_width=True, num_rows="dynamic", key="clients")
-    if not cf.equals(clients_df) and st.button("Save Clients"):
-        save_df(cf, FILES["clients"])
-        _rerun()
-    st.markdown("---")
-    st.subheader("Projects")
-    with st.expander("Add Project"):
-        with st.form("add_project", clear_on_submit=True):
-            if clients_df.empty:
-                st.info("Add client first.")
-            else:
-                cli = st.selectbox("Client", clients_df["Client"].unique())
-                pr = st.text_input("Project")
-                em = st.text_input("Employee")
-                bu = st.number_input("Budget", 0.0)
-                if st.form_submit_button("Save"):
-                    a = round(bu * 0.2, 2)
-                    b = round(bu * 0.4, 2)
-                    projects_df.loc[len(projects_df)] = [cli, pr, em, bu, a, b, b, "Not Paid"]
-                    save_df(projects_df, FILES["projects"])
-                    _rerun()
-    pf = st.data_editor(projects_df, use_container_width=True, num_rows="dynamic", key="projects")
-    if not pf.equals(projects_df) and st.button("Save Projects"):
-        save_df(pf, FILES["projects"])
-        _rerun()
-    st.subheader("Mark Payment")
-    if not projects_df.empty:
-        sel = st.selectbox("Project", projects_df["Project"].unique())
-        ms = st.radio("Milestone", ["Payment 20%", "Payment 40%", "Payment 40% (2)"])
-        if st.button("Confirm"):
-            ix = projects_df[projects_df["Project"] == sel].index
-            projects_df.loc[ix, ms] = 0
-            if all(projects_df.loc[ix[0], col] == 0 for col in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]):
-                projects_df.loc[ix, "Paid Status"] = "Paid"
-            save_df(projects_df, FILES["projects"])
-            _rerun()
+    clients_df = st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="clients")
+    if st.button("💾 Save Clients"):
+        save_df(clients_df, FILES["clients"])
+        st.success("Saved")
+
+    st.subheader("📂 Projects")
+    projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
+    if st.button("💾 Save Projects"):
+        save_df(projects_df, FILES["projects"])
+        st.success("Saved")
 
 elif page == "Employee Salaries":
     st.header("Employee Salaries")
-    with st.expander("Add Salary"):
-        with st.form("add_salary", clear_on_submit=True):
-            e = st.text_input("Employee")
-            r = st.text_input("Role")
-            s = st.number_input("Salary", 0.0)
-            pd_ = st.selectbox("Paid?", ["Yes", "No"])
-            dt = st.date_input("Date", date.today())
-            if st.form_submit_button("Save"):
-                salaries_df.loc[len(salaries_df)] = [e, r, s, pd_, dt]
-                save_df(salaries_df, FILES["salaries"])
-                _rerun()
-    sf = st.data_editor(salaries_df, use_container_width=True, num_rows="dynamic", key="salaries")
-    if not sf.equals(salaries_df) and st.button("Save Salaries"):
-        save_df(sf, FILES["salaries"])
-        _rerun()
+    salaries_df = st.data_editor(salaries_df, num_rows="dynamic", use_container_width=True, key="edit_sal")
+    if st.button("💾 Save Salaries"):
+        save_df(salaries_df, FILES["salaries"])
+        st.success("Saved")
 
 elif page == "Expenses":
-    st.header("Expenses")
-    with st.expander("Add Expense"):
-        with st.form("add_expense", clear_on_submit=True):
-            cat = st.text_input("Category")
-            am = st.number_input("Amount", 0.0)
-            dt = st.date_input("Date", date.today())
-            nt = st.text_area("Notes")
-            if st.form_submit_button("Save"):
-                expenses_df.loc[len(expenses_df)] = [cat, am, dt, nt]
-                save_df(expenses_df, FILES["expenses"])
-                _rerun()
-    ef = st.data_editor(expenses_df, use_container_width=True, num_rows="dynamic", key="expenses")
-    if not ef.equals(expenses_df) and st.button("Save Expenses"):
-        save_df(ef, FILES["expenses"])
-        _rerun()
+    st.header("💸 Monthly Expenses")
+    expenses_df = st.data_editor(expenses_df, num_rows="dynamic", use_container_width=True, key="edit_exp")
+    if st.button("💾 Save Expenses"):
+        save_df(expenses_df, FILES["expenses"])
+        st.success("Saved")
 
 elif page == "Invoice Generator":
-    st.header("Invoice Generator")
+    st.header("🧾 Invoice Generator")
     if projects_df.empty:
-        st.info("No projects.")
+        st.warning("No projects available.")
     else:
-        cli = st.selectbox("Client", projects_df["Client"].unique())
-        pr = st.selectbox("Project", projects_df[projects_df["Client"] == cli]["Project"].unique())
-        row = projects_df[(projects_df["Client"] == cli) & (projects_df["Project"] == pr)].iloc[0]
-        ms = next((m for m in ["Payment 20%", "Payment 40%", "Payment 40% (2)"] if row[m] > 0), None)
-        if not ms:
-            st.success("All paid.")
-        else:
-            amt = row[ms]
-            st.write(f"Next: {ms} = {money(amt)}")
-            if st.button("Generate"):
+        client = st.selectbox("Client", projects_df["Client"].unique())
+        filtered = projects_df[projects_df["Client"] == client]
+        project = st.selectbox("Project", filtered["Project"].unique())
+        selected = filtered[filtered["Project"] == project].iloc[0]
+
+        milestone_label, amount = None, 0
+        for milestone in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]:
+            if milestone in selected and pd.notnull(selected[milestone]) and selected[milestone] > 0:
+                milestone_label = milestone
+                amount = selected[milestone]
+                break
+
+        if milestone_label:
+            st.write(f"Next payment due: **{milestone_label}** — ${amount:,.2f}")
+            if st.button("Generate Invoice"):
                 pdf = InvoicePDF()
                 pdf.add_page()
-                pdf.cell_safe(0, 10, f"Client: {cli}", ln=True)
-                pdf.cell_safe(0, 10, f"Project: {pr}", ln=True)
-                pdf.cell_safe(0, 10, f"Milestone: {ms} - {money(amt)}", ln=True)
-                fn = f"inv_{cli.replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
-                fp = INV_DIR / fn
-                pdf.output(str(fp))
-                st.download_button("Download", open(fp, 'rb'), file_name=fn)
+                pdf.set_font("Arial", size=12)
+                pdf.cell_safe(0, 10, f"Invoice for {selected['Client']}: {milestone_label}", ln=True)
+                pdf.cell_safe(0, 10, f"Project: {selected['Project']} | Amount: ${amount:,.2f}", ln=True)
+                fname = f"Invoice_{selected['Client'].replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
+                fpath = INV_DIR / fname
+                pdf.output(str(fpath))
+                st.download_button("Download Invoice", open(fpath, "rb"), file_name=fname)
+        else:
+            st.success("✅ All payments completed.")
 
 elif page == "Analytics":
-    st.header("Analytics")
+    st.header("📊 Financial Charts")
     if not clients_df.empty:
-        fig = px.bar(clients_df, x="Client", y="Total Paid", title="Payments")
+        fig = px.bar(clients_df, x="Client", y="Total Paid", title="Client Payment Overview")
         st.plotly_chart(fig, use_container_width=True)
+
     if not projects_df.empty:
         projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
-        sums = {"20%": projects_df["Payment 20%"].sum(), "40%": projects_df["Payment 40%"].sum(), "40%(2)": projects_df["Payment 40% (2)"].sum()}
-        fig2 = px.pie(values=list(sums.values()), names=list(sums.keys()), hole=0.4)
+        milestone_sum = {
+            "20%": projects_df["Payment 20%"].sum(),
+            "40%": projects_df["Payment 40%"].sum(),
+            "40% (2)": projects_df["Payment 40% (2)"].sum(),
+        }
+        fig2 = px.pie(values=list(milestone_sum.values()), names=list(milestone_sum.keys()), hole=0.4, title="Project Payment % Distribution")
         st.plotly_chart(fig2, use_container_width=True)
+
     if not expenses_df.empty:
-        es = expenses_df.groupby("Category")["Amount"].sum().reset_index()
-        fig3 = px.pie(es, values="Amount", names="Category", hole=0.4)
+        exp_sum = expenses_df.groupby("Category")["Amount"].sum().reset_index()
+        fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expenses by Category", hole=0.4)
         st.plotly_chart(fig3, use_container_width=True)
 
 elif page == "Monthly Plans":
-    st.header("Monthly Plans")
-    mth = date.today().strftime("%B %Y")
-    with st.expander("Add Plan"):
-        with st.form("add_monthly", clear_on_submit=True):
-            cli = st.selectbox("Client", clients_df["Client"].unique())
-            amt = st.number_input("Amount", 0.0)
-            pm = st.selectbox("Method", ["Fast Pay", "Zain Cash", "FIB", "Money Transfer", "Bank Transfer"])
-            sm = st.checkbox("Include Social Media Budget")
-            pd_ = st.selectbox("Paid?", ["No", "Yes"])
-            if st.form_submit_button("Save"):
-                monthly_df.loc[len(monthly_df)] = [cli, amt, pm, "Yes" if sm else "No", pd_, mth]
-                save_df(monthly_df, FILES["monthly"]);
-                _rerun()
-    st.dataframe(monthly_df[monthly_df["Month"] == mth], use_container_width=True)
+    st.header("📆 Monthly Payment Plans")
+    monthly_df = st.data_editor(monthly_df, num_rows="dynamic", use_container_width=True, key="edit_month")
+    if st.button("💾 Save Monthly Plans"):
+        save_df(monthly_df, FILES["monthly"])
+        st.success("Saved")
 
 elif page == "🔄 Archive & Reset All":
-    st.header("Archive & Reset All")
-    mth_f = date.today().strftime("%B_%Y")
+    st.header("Start New Month")
+    mth_f = datetime.today().strftime("%B_%Y")
     if st.button("Archive and Reset"):
         for key, path in FILES.items():
             archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
             df = pd.read_csv(path)
             df.to_csv(archive_file, index=False)
             pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
-        st.success("Archived all tables and reset data.")
+        st.success("Archived & reset.")
         _rerun()
 
 elif page == "📁 View Archives":
-    st.header("View Archives")
-    files = sorted(ARCHIVE_DIR.glob("*.csv"))
-    sel = st.selectbox("Archive File", [f.name for f in files])
-    if sel:
-        df = pd.read_csv(ARCHIVE_DIR / sel)
+    st.header("📁 Archived Reports")
+    files = sorted(ARCHIVE_DIR.glob("*.csv"), reverse=True)
+    selected = st.selectbox("Select Archive File", [f.name for f in files])
+    if selected:
+        df = pd.read_csv(ARCHIVE_DIR / selected)
         st.dataframe(df, use_container_width=True)
