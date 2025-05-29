@@ -93,73 +93,42 @@ if page == "Dashboard":
 
 elif page == "Clients & Projects":
     st.header("👥 Clients & Projects")
-    with st.expander("➕ Add Client"):
-        with st.form("add_client", clear_on_submit=True):
-            name = st.text_input("Client Name")
-            contact = st.text_input("Contact Info")
-            paid = st.number_input("Total Paid", 0.0)
-            due = st.number_input("Total Due", 0.0)
-            if st.form_submit_button("Save Client"):
-                clients_df.loc[len(clients_df)] = [name, contact, paid, due]
-                save_df(clients_df, FILES["clients"])
-                st.rerun()
-    st.dataframe(clients_df, use_container_width=True)
-    st.divider()
+    if st.button("🔄 Reset Clients"):
+        clients_df = pd.read_csv(FILES["clients"])
+        st.rerun()
+    clients_df = st.data_editor(clients_df, use_container_width=True, num_rows="dynamic", key="edit_clients")
+    if st.button("💾 Save Clients"):
+        save_df(clients_df, FILES["clients"])
+        st.success("Clients updated.")
 
     st.subheader("📁 Projects")
-    with st.expander("➕ Add Project"):
-        with st.form("add_project", clear_on_submit=True):
-            if clients_df.empty:
-                st.info("Please add a client first.")
-            else:
-                client = st.selectbox("Client", clients_df["Client"].unique())
-                project = st.text_input("Project Name")
-                employee = st.text_input("Assigned Employee")
-                budget = st.number_input("Project Budget", 0.0)
-                if st.form_submit_button("Save Project"):
-                    projects_df.loc[len(projects_df)] = {
-                        "Client": client,
-                        "Project": project,
-                        "Employee": employee,
-                        "Budget": budget,
-                        "Payment 20%": round(budget * 0.2, 2),
-                        "Payment 40%": round(budget * 0.4, 2),
-                        "Payment 40% (2)": round(budget * 0.4, 2),
-                        "Paid Status": "Not Paid"
-                    }
-                    save_df(projects_df, FILES["projects"])
-                    st.success("Project added.")
-                    st.rerun()
-    st.dataframe(projects_df, use_container_width=True)
+    if st.button("🔄 Reset Projects"):
+        projects_df = pd.read_csv(FILES["projects"])
+        st.rerun()
+    projects_df = st.data_editor(projects_df, use_container_width=True, num_rows="dynamic", key="edit_projects")
+    if st.button("💾 Save Projects"):
+        save_df(projects_df, FILES["projects"])
+        st.success("Projects updated.")
 
 elif page == "Employee Salaries":
     st.header("💼 Employee Salaries")
-    with st.expander("➕ Add Salary"):
-        with st.form("add_salary", clear_on_submit=True):
-            emp = st.text_input("Employee")
-            role = st.text_input("Role")
-            sal = st.number_input("Salary", 0.0)
-            paid = st.selectbox("Paid", ["Yes", "No"])
-            dt = st.date_input("Date", value=date.today())
-            if st.form_submit_button("Save Salary"):
-                salaries_df.loc[len(salaries_df)] = [emp, role, sal, paid, dt]
-                save_df(salaries_df, FILES["salaries"])
-                st.rerun()
-    st.dataframe(salaries_df, use_container_width=True)
+    if st.button("🔄 Reset Salaries"):
+        salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"])
+        st.rerun()
+    salaries_df = st.data_editor(salaries_df, use_container_width=True, num_rows="dynamic", key="edit_salaries")
+    if st.button("💾 Save Salaries"):
+        save_df(salaries_df, FILES["salaries"])
+        st.success("Salaries updated.")
 
 elif page == "Expenses":
     st.header("💸 Monthly Expenses")
-    with st.expander("➕ Add Expense"):
-        with st.form("add_expense", clear_on_submit=True):
-            cat = st.text_input("Category")
-            amt = st.number_input("Amount", 0.0)
-            dt = st.date_input("Date", value=date.today())
-            notes = st.text_area("Notes")
-            if st.form_submit_button("Save Expense"):
-                expenses_df.loc[len(expenses_df)] = [cat, amt, dt, notes]
-                save_df(expenses_df, FILES["expenses"])
-                st.rerun()
-    st.dataframe(expenses_df, use_container_width=True)
+    if st.button("🔄 Reset Expenses"):
+        expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"])
+        st.rerun()
+    expenses_df = st.data_editor(expenses_df, use_container_width=True, num_rows="dynamic", key="edit_expenses")
+    if st.button("💾 Save Expenses"):
+        save_df(expenses_df, FILES["expenses"])
+        st.success("Expenses updated.")
 
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
@@ -216,23 +185,13 @@ elif page == "Analytics":
 
 elif page == "Monthly Plans":
     st.header("📆 Monthly Payment Plans")
-    with st.expander("➕ Add Monthly Plan"):
-        with st.form("add_monthly", clear_on_submit=True):
-            client = st.selectbox("Client", clients_df["Client"].unique())
-            amount = st.number_input("Amount", 0.0)
-            method = st.selectbox("Payment Method", ["Fast Pay", "Zain Cash", "FIB", "Money Transfer", "Bank Transfer"])
-            sm_budget = st.checkbox("Includes Social Media Budget")
-            paid = st.selectbox("Paid", ["No", "Yes"])
-            if st.form_submit_button("Save Monthly Plan"):
-                monthly_df.loc[len(monthly_df)] = {
-                    "Client": client, "Amount": amount, "Payment Method": method,
-                    "Social Media Budget": "Yes" if sm_budget else "No",
-                    "Paid": paid, "Month": date.today().strftime("%B %Y")
-                }
-                save_df(monthly_df, FILES["monthly"])
-                st.success("Monthly plan saved.")
-                st.rerun()
-    st.dataframe(monthly_df[monthly_df["Month"] == date.today().strftime("%B %Y")], use_container_width=True)
+    if st.button("🔄 Reset Monthly Plans"):
+        monthly_df = pd.read_csv(FILES["monthly"])
+        st.rerun()
+    monthly_df = st.data_editor(monthly_df, use_container_width=True, num_rows="dynamic", key="edit_monthly")
+    if st.button("💾 Save Monthly Plans"):
+        save_df(monthly_df, FILES["monthly"])
+        st.success("Monthly plans updated.")
 
     unpaid = monthly_df[(monthly_df["Paid"] == "No") & (monthly_df["Month"] == date.today().strftime("%B %Y"))]
     if not unpaid.empty:
