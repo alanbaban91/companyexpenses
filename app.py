@@ -125,40 +125,48 @@ if page == "Dashboard":
             fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expenses by Category", hole=0.4)
             st.plotly_chart(fig3, use_container_width=True)
 
+elif page == "Clients & Projects":
+    st.header("👤 Clients")
+    clients_df = st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="clients")
+    if st.button("💾 Save Clients"):
+        save_df(clients_df, FILES["clients"])
+        st.success("Clients saved.")
 
-# Payment Progress Tracker
-st.subheader("📈 Project Payment Progress")
-for idx, row in projects_df.iterrows():
-    try:
-        paid = sum([
-            float(row.get("Payment 20%", 0) or 0),
-            float(row.get("Payment 40%", 0) or 0),
-            float(row.get("Payment 40% (2)", 0) or 0)
-        ])
-        budget = float(row.get("Budget", 0) or 0)
-        progress = min(paid / budget, 1.0) if budget > 0 else 0.0
-        st.markdown(f"**{row['Project']}** — {row['Client']}")
-        st.progress(progress)
-    except Exception as e:
-        st.warning(f"Error processing project '{row['Project']}': {e}")
+    st.markdown("---")
+    st.header("📂 Projects")
+    projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
 
-p1, p2 = st.columns([1, 2])
-if p1.button("💾 Save Projects"):
-    save_df(projects_df, FILES["projects"])
-    st.success("Projects saved.")
+    st.subheader("📈 Project Payment Progress")
+    for idx, row in projects_df.iterrows():
+        try:
+            paid = sum([
+                float(row.get("Payment 20%", 0) or 0),
+                float(row.get("Payment 40%", 0) or 0),
+                float(row.get("Payment 40% (2)", 0) or 0)
+            ])
+            budget = float(row.get("Budget", 0) or 0)
+            progress = min(paid / budget, 1.0) if budget > 0 else 0.0
+            st.markdown(f"**{row['Project']}** — {row['Client']}")
+            st.progress(progress)
+        except Exception as e:
+            st.warning(f"Error processing project '{row['Project']}': {e}")
 
-if p2.button("📦 Archive Projects"):
-    try:
-        mth_f = datetime.today().strftime("%B_%Y")
-        archive_file = ARCHIVE_DIR / f"projects_{mth_f}.csv"
-        if not projects_df.empty and all(col in projects_df.columns for col in COLUMNS["projects"]):
-            projects_df.to_csv(archive_file, index=False)
-            st.success("Projects archived.")
-        else:
-            st.warning("Projects not archived: file is empty or missing columns.")
-    except Exception as err:
-        st.error(f"Failed to archive projects: {err}")
+    p1, p2 = st.columns([1, 2])
+    if p1.button("💾 Save Projects"):
+        save_df(projects_df, FILES["projects"])
+        st.success("Projects saved.")
 
+    if p2.button("📦 Archive Projects"):
+        try:
+            mth_f = datetime.today().strftime("%B_%Y")
+            archive_file = ARCHIVE_DIR / f"projects_{mth_f}.csv"
+            if not projects_df.empty and all(col in projects_df.columns for col in COLUMNS["projects"]):
+                projects_df.to_csv(archive_file, index=False)
+                st.success("Projects archived.")
+            else:
+                st.warning("Projects not archived: file is empty or missing columns.")
+        except Exception as err:
+            st.error(f"Failed to archive projects: {err}")
 
 elif page == "Employee Salaries":
     st.header("Employee Salaries")
