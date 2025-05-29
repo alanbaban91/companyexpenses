@@ -138,18 +138,34 @@ if page == "Dashboard":
             )
             st.plotly_chart(fig3, use_container_width=True)
 
-elif page == "Clients & Projects":
-    st.header("Clients & Projects")
-    clients_df = st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="clients")
-    if st.button("💾 Save Clients"):
-        save_df(clients_df, FILES["clients"])
-        st.success("Saved")
+elif page == "🔄 Archive & Reset All":
+    st.header("Start New Month")
+    mth_f = datetime.today().strftime("%B_%Y")
+    if st.button("Archive and Reset"):
+        try:
+            for key, path in FILES.items():
+                if key == "projects":
+                    continue  # Skip projects; handled separately
 
-    st.subheader("📂 Projects")
-    projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
-    if st.button("💾 Save Projects"):
-        save_df(projects_df, FILES["projects"])
-        st.success("Saved")
+                archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
+                try:
+                    df = pd.read_csv(path)
+                    if not df.empty and all(col in df.columns for col in COLUMNS[key]):
+                        df.to_csv(archive_file, index=False)
+                    else:
+                        st.warning(f"Skipped archiving {key}: file is empty or missing expected columns.")
+                except Exception as read_err:
+                    st.error(f"Error reading {key}: {read_err}")
+                    continue
+
+                pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
+
+            st.success("Archived & reset (excluding projects).")
+            _rerun()
+
+        except Exception as err:
+            st.error(f"Unexpected error during archive/reset: {err}")
+
 
 elif page == "Employee Salaries":
     st.header("Employee Salaries")
