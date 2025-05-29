@@ -106,6 +106,38 @@ elif page == "Clients & Projects":
                 save_df(clients_df, FILES["clients"])
                 st.rerun()
     st.dataframe(clients_df, use_container_width=True)
+    st.divider()
+st.subheader("📁 Projects")
+
+with st.expander("➕ Add Project"):
+    with st.form("add_project", clear_on_submit=True):
+        if clients_df.empty:
+            st.info("Please add a client first.")
+        else:
+            client = st.selectbox("Client", clients_df["Client"].unique())
+            project = st.text_input("Project Name")
+            employee = st.text_input("Assigned Employee")
+            budget = st.number_input("Project Budget", 0.0)
+            if st.form_submit_button("Save Project"):
+                projects_df.loc[len(projects_df)] = {
+                    "Client": client,
+                    "Project": project,
+                    "Employee": employee,
+                    "Budget": budget,
+                    "Payment 20%": round(budget * 0.2, 2),
+                    "Payment 40%": round(budget * 0.4, 2),
+                    "Payment 40% (2)": round(budget * 0.4, 2),
+                    "Paid Status": "Not Paid"
+                }
+                save_df(projects_df, FILES["projects"])
+                st.success("Project added.")
+                st.rerun()
+
+if not projects_df.empty:
+    st.dataframe(projects_df, use_container_width=True)
+else:
+    st.info("No projects available.")
+
 
 elif page == "Employee Salaries":
     st.header("💼 Employee Salaries")
@@ -120,7 +152,7 @@ elif page == "Employee Salaries":
                 salaries_df.loc[len(salaries_df)] = [emp, role, sal, paid, dt]
                 save_df(salaries_df, FILES["salaries"])
                 st.rerun()
-    st.dataframe(salaries_df, use_container_width=True)
+    (salaries_df, use_container_width=True)
 
 elif page == "Expenses":
     st.header("💸 Monthly Expenses")
@@ -134,7 +166,7 @@ elif page == "Expenses":
                 expenses_df.loc[len(expenses_df)] = [cat, amt, dt, notes]
                 save_df(expenses_df, FILES["expenses"])
                 st.rerun()
-    st.dataframe(expenses_df, use_container_width=True)
+    (expenses_df, use_container_width=True)
 
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
