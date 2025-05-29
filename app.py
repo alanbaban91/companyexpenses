@@ -55,7 +55,7 @@ else:
 
 pages = [
     "Dashboard", "Clients & Projects", "Employee Salaries",
-    "Expenses", "Invoice Generator", "Analytics", "Monthly Plans",
+    "Expenses", "Invoice Generator", "Monthly Plans",
     "🔄 Archive & Reset All", "📁 View Archives"
 ]
 page = st.sidebar.radio("Navigate", pages)
@@ -84,7 +84,6 @@ class InvoicePDF(FPDF):
 if page == "Dashboard":
     st.header("Overview Metrics")
 
-    # Summary Metrics
     clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
     salaries_df["Salary"] = pd.to_numeric(salaries_df["Salary"], errors="coerce").fillna(0)
     expenses_df["Amount"] = pd.to_numeric(expenses_df["Amount"], errors="coerce").fillna(0)
@@ -104,14 +103,11 @@ if page == "Dashboard":
     st.subheader("📊 Financial Charts")
 
     chart_cols = st.columns(3)
-
-    # Chart 1: Client Payment Overview
     with chart_cols[0]:
         if not clients_df.empty:
             fig = px.bar(clients_df, x="Client", y="Total Paid", title="Client Payment Overview")
             st.plotly_chart(fig, use_container_width=True)
 
-    # Chart 2: Project Milestones
     with chart_cols[1]:
         if not projects_df.empty:
             projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
@@ -120,66 +116,56 @@ if page == "Dashboard":
                 "40%": projects_df["Payment 40%"].sum(),
                 "40% (2)": projects_df["Payment 40% (2)"].sum(),
             }
-            fig2 = px.pie(
-                values=list(milestone_sum.values()),
-                names=list(milestone_sum.keys()),
-                hole=0.4,
-                title="Project Payment % Distribution"
-            )
+            fig2 = px.pie(values=list(milestone_sum.values()), names=list(milestone_sum.keys()), hole=0.4, title="Project Payment % Distribution")
             st.plotly_chart(fig2, use_container_width=True)
 
-    # Chart 3: Expenses by Category
     with chart_cols[2]:
         if not expenses_df.empty:
             exp_sum = expenses_df.groupby("Category")["Amount"].sum().reset_index()
-            fig3 = px.pie(
-                exp_sum, values="Amount", names="Category",
-                title="Expenses by Category", hole=0.4
-            )
+            fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expenses by Category", hole=0.4)
             st.plotly_chart(fig3, use_container_width=True)
 
-elif page == "🔄 Archive & Reset All":
-    st.header("Start New Month")
-    mth_f = datetime.today().strftime("%B_%Y")
-    if st.button("Archive and Reset"):
+elif page == "Clients & Projects":
+    st.header("👤 Clients")
+    clients_df = st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="clients")
+    c1, c2 = st.columns([1, 2])
+    if c1.button("📂 Save Clients"):
+        save_df(clients_df, FILES["clients"])
+        st.success("Clients saved.")
+
+    st.markdown("---")
+    st.header("📂 Projects")
+    projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
+    p1, p2 = st.columns([1, 2])
+    if p1.button("📂 Save Projects"):
+        save_df(projects_df, FILES["projects"])
+        st.success("Projects saved.")
+
+    if p2.button("📆 Archive Projects"):
         try:
-            for key, path in FILES.items():
-                if key == "projects":
-                    continue  # Skip projects; handled separately
-
-                archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
-                try:
-                    df = pd.read_csv(path)
-                    if not df.empty and all(col in df.columns for col in COLUMNS[key]):
-                        df.to_csv(archive_file, index=False)
-                    else:
-                        st.warning(f"Skipped archiving {key}: file is empty or missing expected columns.")
-                except Exception as read_err:
-                    st.error(f"Error reading {key}: {read_err}")
-                    continue
-
-                pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
-
-            st.success("Archived & reset (excluding projects).")
-            _rerun()
-
+            mth_f = datetime.today().strftime("%B_%Y")
+            archive_file = ARCHIVE_DIR / f"projects_{mth_f}.csv"
+            if not projects_df.empty and all(col in projects_df.columns for col in COLUMNS["projects"]):
+                projects_df.to_csv(archive_file, index=False)
+                st.success("Projects archived.")
+            else:
+                st.warning("Projects not archived: file is empty or missing columns.")
         except Exception as err:
-            st.error(f"Unexpected error during archive/reset: {err}")
-
+            st.error(f"Failed to archive projects: {err}")
 
 elif page == "Employee Salaries":
     st.header("Employee Salaries")
     salaries_df = st.data_editor(salaries_df, num_rows="dynamic", use_container_width=True, key="edit_sal")
-    if st.button("💾 Save Salaries"):
+    if st.button("📂 Save Salaries"):
         save_df(salaries_df, FILES["salaries"])
-        st.success("Saved")
+        st.success("Salaries saved.")
 
 elif page == "Expenses":
     st.header("💸 Monthly Expenses")
     expenses_df = st.data_editor(expenses_df, num_rows="dynamic", use_container_width=True, key="edit_exp")
-    if st.button("💾 Save Expenses"):
+    if st.button("📂 Save Expenses"):
         save_df(expenses_df, FILES["expenses"])
-        st.success("Saved")
+        st.success("Expenses saved.")
 
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
@@ -213,31 +199,10 @@ elif page == "Invoice Generator":
         else:
             st.success("✅ All payments completed.")
 
-elif page == "Analytics":
-    st.header("📊 Financial Charts")
-    if not clients_df.empty:
-        fig = px.bar(clients_df, x="Client", y="Total Paid", title="Client Payment Overview")
-        st.plotly_chart(fig, use_container_width=True)
-
-    if not projects_df.empty:
-        projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
-        milestone_sum = {
-            "20%": projects_df["Payment 20%"].sum(),
-            "40%": projects_df["Payment 40%"].sum(),
-            "40% (2)": projects_df["Payment 40% (2)"].sum(),
-        }
-        fig2 = px.pie(values=list(milestone_sum.values()), names=list(milestone_sum.keys()), hole=0.4, title="Project Payment % Distribution")
-        st.plotly_chart(fig2, use_container_width=True)
-
-    if not expenses_df.empty:
-        exp_sum = expenses_df.groupby("Category")["Amount"].sum().reset_index()
-        fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expenses by Category", hole=0.4)
-        st.plotly_chart(fig3, use_container_width=True)
-
 elif page == "Monthly Plans":
     st.header("📆 Monthly Payment Plans")
     monthly_df = st.data_editor(monthly_df, num_rows="dynamic", use_container_width=True, key="edit_month")
-    if st.button("💾 Save Monthly Plans"):
+    if st.button("📂 Save Monthly Plans"):
         save_df(monthly_df, FILES["monthly"])
         st.success("Saved")
 
@@ -247,9 +212,10 @@ elif page == "🔄 Archive & Reset All":
     if st.button("Archive and Reset"):
         try:
             for key, path in FILES.items():
-                archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
+                if key == "projects":
+                    continue  # Skip projects; handled separately
 
-                # Try reading the existing file
+                archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
                 try:
                     df = pd.read_csv(path)
                     if not df.empty and all(col in df.columns for col in COLUMNS[key]):
@@ -260,10 +226,9 @@ elif page == "🔄 Archive & Reset All":
                     st.error(f"Error reading {key}: {read_err}")
                     continue
 
-                # Reset the file to empty with proper headers
                 pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
 
-            st.success("Archived & reset.")
+            st.success("Archived & reset (excluding projects).")
             _rerun()
 
         except Exception as err:
