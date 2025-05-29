@@ -63,6 +63,7 @@ class InvoicePDF(FPDF):
         self.set_font("Helvetica", size=11)
         self.multi_cell(0, 10, f"Payment Request for {row['Client']}\nAmount Due: ${row['Amount']:.2f}\nPayment Method: {row['Payment Method']}\nDue Date: 28 {row['Month']}\n\nPlease make the payment by the due date.")
 
+# DASHBOARD
 if page == "Dashboard":
     st.header("📈 Overview Metrics")
     clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
@@ -83,6 +84,7 @@ if page == "Dashboard":
         ("Unpaid Salaries", unpaid_salaries)
     ]): c.metric(label, money(val))
 
+# CLIENTS & PROJECTS
 elif page == "Clients & Projects":
     st.header("👥 Clients & Projects")
     with st.form("add_client", clear_on_submit=True):
@@ -122,6 +124,7 @@ elif page == "Clients & Projects":
     projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="edit_projects")
     if st.button("💾 Save Projects"): save_df(projects_df, FILES["projects"])
 
+# EMPLOYEE SALARIES
 elif page == "Employee Salaries":
     st.header("💼 Employee Salaries")
     with st.form("add_salary", clear_on_submit=True):
@@ -138,11 +141,23 @@ elif page == "Employee Salaries":
     salaries_df = st.data_editor(salaries_df, num_rows="dynamic", use_container_width=True, key="edit_salaries")
     if st.button("💾 Save Salaries"): save_df(salaries_df, FILES["salaries"])
 
+# EXPENSES
 elif page == "Expenses":
     st.header("💸 Monthly Expenses")
+    with st.form("add_expense", clear_on_submit=True):
+        cat = st.text_input("Category")
+        amt = st.number_input("Amount", 0.0)
+        dt = st.date_input("Date", value=date.today())
+        notes = st.text_area("Notes")
+        if st.form_submit_button("Save Expense"):
+            expenses_df.loc[len(expenses_df)] = {"Category": cat, "Amount": amt, "Date": dt, "Notes": notes}
+            save_df(expenses_df, FILES["expenses"])
+            st.rerun()
+
     expenses_df = st.data_editor(expenses_df, num_rows="dynamic", use_container_width=True, key="edit_expenses")
     if st.button("💾 Save Expenses"): save_df(expenses_df, FILES["expenses"])
 
+# ANALYTICS
 elif page == "Analytics":
     st.header("📊 Financial Charts")
     try:
@@ -167,6 +182,7 @@ elif page == "Analytics":
         st.plotly_chart(fig3, use_container_width=True)
     except: st.warning("Missing expense data.")
 
+# INVOICE GENERATOR
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
     if projects_df.empty:
@@ -195,6 +211,7 @@ elif page == "Invoice Generator":
         else:
             st.success("All payments completed.")
 
+# MONTHLY PLANS
 elif page == "Monthly Plans":
     st.header("📅 Monthly Payment Plans")
     with st.form("add_monthly", clear_on_submit=True):
