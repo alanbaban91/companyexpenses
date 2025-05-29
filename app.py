@@ -61,14 +61,8 @@ class InvoicePDF(FPDF):
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
     def monthly_invoice(self, row):
         self.set_font("Helvetica", size=11)
-        self.cell(0, 10, f"Payment Request for {row['Client']}", ln=True)
-        self.cell(0, 10, f"Amount Due: ${row['Amount']:.2f}", ln=True)
-        self.cell(0, 10, f"Payment Method: {row['Payment Method']}", ln=True)
-        self.cell(0, 10, f"Due Date: 28 {row['Month']}", ln=True)
-        self.ln(5)
-        self.cell(0, 10, "Please make the payment by the due date.", ln=True)
+        self.multi_cell(0, 10, f"Payment Request for {row['Client']}\nAmount Due: ${row['Amount']:.2f}\nPayment Method: {row['Payment Method']}\nDue Date: 28 {row['Month']}\n\nPlease make the payment by the due date.")
 
-# ─────────────────────── PAGES ───────────────────────
 if page == "Dashboard":
     st.header("📈 Overview Metrics")
     clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
@@ -91,23 +85,62 @@ if page == "Dashboard":
 
 elif page == "Clients & Projects":
     st.header("👥 Clients & Projects")
-    st.subheader("Clients")
-    clients_df = st.data_editor(clients_df, num_rows='dynamic', use_container_width=True, key='edit_clients')
+    with st.form("add_client", clear_on_submit=True):
+        st.subheader("➕ Add New Client")
+        name = st.text_input("Client Name")
+        contact = st.text_input("Contact Info")
+        paid = st.number_input("Total Paid", 0.0)
+        due = st.number_input("Total Due", 0.0)
+        if st.form_submit_button("Save Client"):
+            clients_df.loc[len(clients_df)] = {"Client": name, "Contact": contact, "Total Paid": paid, "Total Due": due}
+            save_df(clients_df, FILES["clients"])
+            st.success("Client added.")
+            st.rerun()
+
+    st.subheader("✏️ Edit Clients")
+    clients_df = st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="edit_clients")
     if st.button("💾 Save Clients"): save_df(clients_df, FILES["clients"])
 
     st.divider()
-    st.subheader("Projects")
-    projects_df = st.data_editor(projects_df, num_rows='dynamic', use_container_width=True, key='edit_projects')
+    st.subheader("📁 Add Project")
+    with st.form("add_project", clear_on_submit=True):
+        client = st.selectbox("Client", clients_df["Client"].unique())
+        project = st.text_input("Project Name")
+        emp = st.text_input("Assigned Employee")
+        budget = st.number_input("Full Budget", 0.0)
+        if st.form_submit_button("Save Project"):
+            new = {
+                "Client": client, "Project": project, "Employee": emp, "Budget": budget,
+                "Payment 20%": round(budget * 0.2, 2), "Payment 40%": round(budget * 0.4, 2),
+                "Payment 40% (2)": round(budget * 0.4, 2), "Paid Status": "Not Paid"
+            }
+            projects_df.loc[len(projects_df)] = new
+            save_df(projects_df, FILES["projects"])
+            st.rerun()
+
+    st.subheader("✏️ Edit Projects")
+    projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="edit_projects")
     if st.button("💾 Save Projects"): save_df(projects_df, FILES["projects"])
 
 elif page == "Employee Salaries":
     st.header("💼 Employee Salaries")
-    salaries_df = st.data_editor(salaries_df, num_rows='dynamic', use_container_width=True, key='edit_salaries')
+    with st.form("add_salary", clear_on_submit=True):
+        emp = st.text_input("Employee")
+        role = st.text_input("Role")
+        sal = st.number_input("Salary", 0.0)
+        paid = st.selectbox("Paid", ["Yes", "No"])
+        dt = st.date_input("Date", value=date.today())
+        if st.form_submit_button("Save Salary"):
+            salaries_df.loc[len(salaries_df)] = {"Employee": emp, "Role": role, "Salary": sal, "Paid": paid, "Date": dt}
+            save_df(salaries_df, FILES["salaries"])
+            st.rerun()
+
+    salaries_df = st.data_editor(salaries_df, num_rows="dynamic", use_container_width=True, key="edit_salaries")
     if st.button("💾 Save Salaries"): save_df(salaries_df, FILES["salaries"])
 
 elif page == "Expenses":
     st.header("💸 Monthly Expenses")
-    expenses_df = st.data_editor(expenses_df, num_rows='dynamic', use_container_width=True, key='edit_expenses')
+    expenses_df = st.data_editor(expenses_df, num_rows="dynamic", use_container_width=True, key="edit_expenses")
     if st.button("💾 Save Expenses"): save_df(expenses_df, FILES["expenses"])
 
 elif page == "Analytics":
@@ -124,20 +157,20 @@ elif page == "Analytics":
             "40%": projects_df["Payment 40%"].sum(),
             "40% (2)": projects_df["Payment 40% (2)"].sum(),
         }
-        fig2 = px.pie(values=list(milestone_sum.values()), names=list(milestone_sum.keys()), hole=0.4, title="Project Payment Distribution")
+        fig2 = px.pie(values=list(milestone_sum.values()), names=list(milestone_sum.keys()), hole=0.4, title="Milestone Distribution")
         st.plotly_chart(fig2, use_container_width=True)
-    except: st.warning("Missing data for milestone pie chart.")
+    except: st.warning("Missing milestone data.")
 
     try:
         exp_sum = expenses_df.groupby("Category")["Amount"].sum().reset_index()
         fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expense Breakdown", hole=0.4)
         st.plotly_chart(fig3, use_container_width=True)
-    except: st.warning("Missing data for expense pie chart.")
+    except: st.warning("Missing expense data.")
 
 elif page == "Invoice Generator":
     st.header("🧾 Invoice Generator")
     if projects_df.empty:
-        st.info("No projects available.")
+        st.warning("No projects available.")
     else:
         client = st.selectbox("Client", projects_df["Client"].unique())
         filtered = projects_df[projects_df["Client"] == client]
@@ -152,20 +185,18 @@ elif page == "Invoice Generator":
             st.write(f"Next payment due: **{milestone_label}** — ${amount:,.2f}")
             if st.button("Generate Invoice PDF"):
                 pdf = InvoicePDF(); pdf.add_page()
-                pdf.set_font("Helvetica", size=12)
                 for field in ["Client", "Project", "Employee"]:
                     pdf.cell(0, 10, f"{field}: {selected[field]}", ln=True)
                 pdf.cell(0, 10, f"{milestone_label}: ${amount:,.2f}", ln=True)
-                filename = f"Invoice_{client.replace(' ', '_')}_{milestone_label.replace('%', '')}.pdf"
-                path = INV_DIR / filename
-                pdf.output(str(path))
-                st.download_button("📥 Download PDF", open(path, "rb"), file_name=filename)
+                fname = f"Invoice_{client.replace(' ', '_')}_{milestone_label.replace('%', '')}.pdf"
+                path = INV_DIR / fname
+                pdf.output(str(path), "F")
+                st.download_button("📥 Download PDF", open(path, "rb"), file_name=fname)
         else:
-            st.success("All milestones are paid.")
+            st.success("All payments completed.")
 
 elif page == "Monthly Plans":
     st.header("📅 Monthly Payment Plans")
-    st.subheader("New Plan")
     with st.form("add_monthly", clear_on_submit=True):
         client = st.selectbox("Client", clients_df["Client"].unique())
         amount = st.number_input("Amount", 0.0)
@@ -193,9 +224,8 @@ elif page == "Monthly Plans":
                     pdf = InvoicePDF(); pdf.add_page(); pdf.monthly_invoice(row)
                     fname = f"MonthlyInvoice_{row['Client'].replace(' ', '_')}_{row['Month'].replace(' ', '_')}.pdf"
                     path = INV_DIR / fname
-                    pdf.output(str(path))
+                    pdf.output(str(path), "F")
                     st.download_button("📥 Download PDF", open(path, "rb"), file_name=fname)
-                    st.success("PDF Created")
                 except Exception as e:
                     st.error(f"PDF generation failed: {e}")
 
