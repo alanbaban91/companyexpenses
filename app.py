@@ -187,13 +187,29 @@ elif page == "🔄 Archive & Reset All":
     st.header("Start New Month")
     mth_f = datetime.today().strftime("%B_%Y")
     if st.button("Archive and Reset"):
-        for key, path in FILES.items():
-            archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
-            df = pd.read_csv(path)
-            df.to_csv(archive_file, index=False)
-            pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
-        st.success("Archived & reset.")
-        _rerun()
+        try:
+            for key, path in FILES.items():
+                archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
+
+                # Try reading the existing file
+                try:
+                    df = pd.read_csv(path)
+                    if not df.empty and all(col in df.columns for col in COLUMNS[key]):
+                        df.to_csv(archive_file, index=False)
+                    else:
+                        st.warning(f"Skipped archiving {key}: file is empty or missing expected columns.")
+                except Exception as read_err:
+                    st.error(f"Error reading {key}: {read_err}")
+                    continue
+
+                # Reset the file to empty with proper headers
+                pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
+
+            st.success("Archived & reset.")
+            _rerun()
+
+        except Exception as err:
+            st.error(f"Unexpected error during archive/reset: {err}")
 
 elif page == "📁 View Archives":
     st.header("📁 Archived Reports")
