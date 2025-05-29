@@ -248,8 +248,8 @@ elif page == "🔄 Archive & Reset All":
 
         except Exception as err:
             st.error(f"Unexpected error during archive/reset: {err}")
+# View Archives Page Addition
 
- ───────────── View Archives Page Addition ─────────────
 if page == "📁 View Archives":
     st.header("📁 Archived Reports")
     files = sorted(ARCHIVE_DIR.glob("*.csv"), reverse=True)
