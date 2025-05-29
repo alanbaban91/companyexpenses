@@ -125,17 +125,6 @@ if page == "Dashboard":
             fig3 = px.pie(exp_sum, values="Amount", names="Category", title="Expenses by Category", hole=0.4)
             st.plotly_chart(fig3, use_container_width=True)
 
-elif page == "Clients & Projects":
-    st.header("👤 Clients")
-    clients_df = st.data_editor(clients_df, num_rows="dynamic", use_container_width=True, key="clients")
-    c1, c2 = st.columns([1, 2])
-    if c1.button("📂 Save Clients"):
-        save_df(clients_df, FILES["clients"])
-        st.success("Clients saved.")
-
-    st.markdown("---")
-    st.header("📂 Projects")
-projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
 
 # Payment Progress Tracker
 st.subheader("📈 Project Payment Progress")
