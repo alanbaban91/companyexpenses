@@ -1,13 +1,14 @@
 from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 from fpdf import FPDF
 
+# ───────────────────── Paths & Setup ─────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 ARCHIVE_DIR = BASE_DIR / "archive"
@@ -23,42 +24,48 @@ FILES: Dict[str, Path] = {
     "monthly": DATA_DIR / "monthly.csv",
 }
 
-COLUMNS = {
-    "clients": ["Client", "Contact", "Total Paid", "Total Due"],
+COLUMNS: Dict[str, List[str]] = {
+    "clients":  ["Client", "Contact", "Total Paid", "Total Due"],
     "projects": ["Client", "Project", "Employee", "Budget", "Payment 20%", "Payment 40%", "Payment 40% (2)", "Paid Status"],
     "salaries": ["Employee", "Role", "Salary", "Paid", "Date"],
     "expenses": ["Category", "Amount", "Date", "Notes"],
-    "monthly": ["Client", "Amount", "Payment Method", "Social Media Budget", "Paid", "Month"],
+    "monthly":  ["Client", "Amount", "Payment Method", "Social Media Budget", "Paid", "Month"],
 }
 
+# Ensure CSVs exist
 for key, path in FILES.items():
     if not path.exists():
         pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
 
-clients_df = pd.read_csv(FILES["clients"])
+# Load DataFrames
+clients_df  = pd.read_csv(FILES["clients"])
 projects_df = pd.read_csv(FILES["projects"])
-salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"])
-expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"])
-monthly_df = pd.read_csv(FILES["monthly"])
+salaries_df = pd.read_csv(FILES["salaries"], parse_dates=["Date"], dayfirst=True)
+expenses_df = pd.read_csv(FILES["expenses"], parse_dates=["Date"], dayfirst=True)
+monthly_df  = pd.read_csv(FILES["monthly"])
 
-st.set_page_config("33Studio Dashboard", layout="wide")
+# Streamlit Config
+st.set_page_config("33Studio Finance Dashboard", layout="wide")
 st.title("33Studio Finance Dashboard")
 
-# shim for rerun
-if hasattr(st, 'rerun'):
+# Rerun Shim
+if hasattr(st, "rerun"):
     _rerun = st.rerun
-elif hasattr(st, 'experimental_rerun'):
+elif hasattr(st, "experimental_rerun"):
     _rerun = st.experimental_rerun
 else:
     def _rerun():
-        raise RuntimeError('Please refresh to see changes.')
+        raise RuntimeError("Please refresh the page to see updates.")
 
+# Navigation
 pages = [
     "Dashboard", "Clients & Projects", "Employee Salaries",
     "Expenses", "Invoice Generator", "Analytics", "Monthly Plans",
-    "🔄 Start New Month", "📁 View Archives"
+    "🔄 Archive & Reset All", "📁 View Archives"
 ]
 page = st.sidebar.radio("Navigate", pages)
+
+# Helpers
 
 def save_df(df: pd.DataFrame, path: Path) -> None:
     df.to_csv(path, index=False)
@@ -70,6 +77,7 @@ class InvoicePDF(FPDF):
     def header(self):
         self.set_font("Arial", "B", 14)
         self.cell(0, 10, "Invoice", ln=True, align="C")
+        self.ln(5)
     def footer(self):
         self.set_y(-15)
         self.set_font("Arial", "I", 8)
@@ -78,6 +86,7 @@ class InvoicePDF(FPDF):
         safe = txt.encode("latin-1", "replace").decode("latin-1")
         self.cell(w, h, safe, **kwargs)
 
+# ───────────────────── Pages ─────────────────────
 if page == "Dashboard":
     st.header("Overview Metrics")
     clients_df[["Total Paid","Total Due"]] = clients_df[["Total Paid","Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
@@ -229,24 +238,26 @@ elif page == "Monthly Plans":
             pd_ = st.selectbox("Paid?", ["No", "Yes"])
             if st.form_submit_button("Save"):
                 monthly_df.loc[len(monthly_df)] = [cli, amt, pm, "Yes" if sm else "No", pd_, mth]
-                save_df(monthly_df, FILES["monthly"])
+                save_df(monthly_df, FILES["monthly"]);
                 _rerun()
-    md = st.dataframe(monthly_df[monthly_df["Month"] == mth], use_container_width=True)
+    st.dataframe(monthly_df[monthly_df["Month"] == mth], use_container_width=True)
 
-elif page == "🔄 Start New Month":
-    st.header("Start New Month")
+elif page == "🔄 Archive & Reset All":
+    st.header("Archive & Reset All")
     mth_f = date.today().strftime("%B_%Y")
     if st.button("Archive and Reset"):
-        archive_file = ARCHIVE_DIR / f"monthly_{mth_f}.csv"
-        monthly_df.to_csv(archive_file, index=False)
-        pd.DataFrame(columns=COLUMNS["monthly"]).to_csv(FILES["monthly"], index=False)
-        st.success("Archived & reset.")
+        for key, path in FILES.items():
+            archive_file = ARCHIVE_DIR / f"{key}_{mth_f}.csv"
+            df = pd.read_csv(path)
+            df.to_csv(archive_file, index=False)
+            pd.DataFrame(columns=COLUMNS[key]).to_csv(path, index=False)
+        st.success("Archived all tables and reset data.")
         _rerun()
 
 elif page == "📁 View Archives":
     st.header("View Archives")
-    archives = list(ARCHIVE_DIR.glob("monthly_*.csv"))
-    sel = st.selectbox("Archive File", [p.name for p in archives])
+    files = sorted(ARCHIVE_DIR.glob("*.csv"))
+    sel = st.selectbox("Archive File", [f.name for f in files])
     if sel:
         df = pd.read_csv(ARCHIVE_DIR / sel)
         st.dataframe(df, use_container_width=True)
