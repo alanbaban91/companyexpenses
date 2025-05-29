@@ -83,18 +83,60 @@ class InvoicePDF(FPDF):
 # ───────────────────── Pages ─────────────────────
 if page == "Dashboard":
     st.header("Overview Metrics")
+
+    # Summary Metrics
     clients_df[["Total Paid", "Total Due"]] = clients_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors="coerce").fillna(0)
     salaries_df["Salary"] = pd.to_numeric(salaries_df["Salary"], errors="coerce").fillna(0)
     expenses_df["Amount"] = pd.to_numeric(expenses_df["Amount"], errors="coerce").fillna(0)
+
     inc = clients_df["Total Paid"].sum()
     out = clients_df["Total Due"].sum()
     paid_sal = salaries_df.query("Paid=='Yes'")["Salary"].sum()
     exp = expenses_df["Amount"].sum() + paid_sal
+
     cols = st.columns(4)
     cols[0].metric("Income", money(inc))
     cols[1].metric("Outstanding", money(out))
     cols[2].metric("Paid Salaries", money(paid_sal))
     cols[3].metric("Expenses", money(exp))
+
+    st.markdown("---")
+    st.subheader("📊 Financial Charts")
+
+    chart_cols = st.columns(3)
+
+    # Chart 1: Client Payment Overview
+    with chart_cols[0]:
+        if not clients_df.empty:
+            fig = px.bar(clients_df, x="Client", y="Total Paid", title="Client Payment Overview")
+            st.plotly_chart(fig, use_container_width=True)
+
+    # Chart 2: Project Milestones
+    with chart_cols[1]:
+        if not projects_df.empty:
+            projects_df["Budget"] = pd.to_numeric(projects_df["Budget"], errors="coerce").fillna(0)
+            milestone_sum = {
+                "20%": projects_df["Payment 20%"].sum(),
+                "40%": projects_df["Payment 40%"].sum(),
+                "40% (2)": projects_df["Payment 40% (2)"].sum(),
+            }
+            fig2 = px.pie(
+                values=list(milestone_sum.values()),
+                names=list(milestone_sum.keys()),
+                hole=0.4,
+                title="Project Payment % Distribution"
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+
+    # Chart 3: Expenses by Category
+    with chart_cols[2]:
+        if not expenses_df.empty:
+            exp_sum = expenses_df.groupby("Category")["Amount"].sum().reset_index()
+            fig3 = px.pie(
+                exp_sum, values="Amount", names="Category",
+                title="Expenses by Category", hole=0.4
+            )
+            st.plotly_chart(fig3, use_container_width=True)
 
 elif page == "Clients & Projects":
     st.header("Clients & Projects")
