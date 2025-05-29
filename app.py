@@ -135,23 +135,41 @@ elif page == "Clients & Projects":
 
     st.markdown("---")
     st.header("📂 Projects")
-    projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
-    p1, p2 = st.columns([1, 2])
-    if p1.button("📂 Save Projects"):
-        save_df(projects_df, FILES["projects"])
-        st.success("Projects saved.")
+projects_df = st.data_editor(projects_df, num_rows="dynamic", use_container_width=True, key="projects")
 
-    if p2.button("📆 Archive Projects"):
-        try:
-            mth_f = datetime.today().strftime("%B_%Y")
-            archive_file = ARCHIVE_DIR / f"projects_{mth_f}.csv"
-            if not projects_df.empty and all(col in projects_df.columns for col in COLUMNS["projects"]):
-                projects_df.to_csv(archive_file, index=False)
-                st.success("Projects archived.")
-            else:
-                st.warning("Projects not archived: file is empty or missing columns.")
-        except Exception as err:
-            st.error(f"Failed to archive projects: {err}")
+# Payment Progress Tracker
+st.subheader("📈 Project Payment Progress")
+for idx, row in projects_df.iterrows():
+    try:
+        paid = sum([
+            float(row.get("Payment 20%", 0) or 0),
+            float(row.get("Payment 40%", 0) or 0),
+            float(row.get("Payment 40% (2)", 0) or 0)
+        ])
+        budget = float(row.get("Budget", 0) or 0)
+        progress = min(paid / budget, 1.0) if budget > 0 else 0.0
+        st.markdown(f"**{row['Project']}** — {row['Client']}")
+        st.progress(progress)
+    except Exception as e:
+        st.warning(f"Error processing project '{row['Project']}': {e}")
+
+p1, p2 = st.columns([1, 2])
+if p1.button("💾 Save Projects"):
+    save_df(projects_df, FILES["projects"])
+    st.success("Projects saved.")
+
+if p2.button("📦 Archive Projects"):
+    try:
+        mth_f = datetime.today().strftime("%B_%Y")
+        archive_file = ARCHIVE_DIR / f"projects_{mth_f}.csv"
+        if not projects_df.empty and all(col in projects_df.columns for col in COLUMNS["projects"]):
+            projects_df.to_csv(archive_file, index=False)
+            st.success("Projects archived.")
+        else:
+            st.warning("Projects not archived: file is empty or missing columns.")
+    except Exception as err:
+        st.error(f"Failed to archive projects: {err}")
+
 
 elif page == "Employee Salaries":
     st.header("Employee Salaries")
