@@ -249,14 +249,16 @@ elif page == "🔄 Archive & Reset All":
         except Exception as err:
             st.error(f"Unexpected error during archive/reset: {err}")
 
-elif page == "📁 View Archives":
+ ───────────── View Archives Page Addition ─────────────
+if page == "📁 View Archives":
     st.header("📁 Archived Reports")
     files = sorted(ARCHIVE_DIR.glob("*.csv"), reverse=True)
     selected = st.selectbox("Select Archive File", [f.name for f in files])
     if selected:
         df = pd.read_csv(ARCHIVE_DIR / selected)
         st.dataframe(df, use_container_width=True)
-                if "DueDate" in df.columns:
+
+        if "DueDate" in df.columns:
             st.markdown("---")
             st.subheader("📅 Upcoming Payments from Archive")
             try:
@@ -272,4 +274,3 @@ elif page == "📁 View Archives":
                     st.info("✅ No upcoming payments in this archive.")
             except Exception as e:
                 st.error(f"Failed to parse due dates in archive: {e}")
-
