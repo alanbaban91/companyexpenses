@@ -174,6 +174,13 @@ elif page=='Clients':
         save_df(clients_df,FILES['clients'])
         st.success('Clients saved.')
 
+st.subheader("💹 Client Payment Breakdown")
+df = clients_df.copy()
+df[["Total Paid","Total Due"]] = df[["Total Paid","Total Due"]].apply(pd.to_numeric,errors="coerce").fillna(0)
+fig = px.bar(df, x="Client", y=["Total Paid","Total Due"], barmode="group")
+st.plotly_chart(fig, use_container_width=True)
+
+
 elif page=='Projects':
     st.header('📂 Projects')
     projects_df=st.data_editor(projects_df,num_rows='dynamic',use_container_width=True,key='edit_projects')
