@@ -189,7 +189,7 @@ elif page=='Projects':
     projects_df = st.data_editor(projects_df, num_rows='dynamic', use_container_width=True, key='edit_projects')
 
     # Buttons side‑by‑side
-    btn_save, btn_archive, _ = st.columns([1,1,6])
+    btn_save, btn_archive, _ = st.columns([0.5,0.5,6])
     with btn_save:
         if st.button('💾 Save Projects'):
             save_df(projects_df, FILES['projects'])
