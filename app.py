@@ -231,10 +231,17 @@ elif page=='Salaries':
     st.header('💼 Employee Salaries')
     salaries_df = st.data_editor(salaries_df, num_rows='dynamic', use_container_width=True, key='edit_salaries')
 
-    # Side‑by‑side buttons (only save needed)
-    if st.button('💾 Save Salaries'):
-        save_df(salaries_df, FILES['salaries'])
-        st.success('Salaries saved.')
+    # Buttons side‑by‑side
+    btn_save_sal, btn_arch_sal, _ = st.columns([1, 1, 6])
+    with btn_save_sal:
+        if st.button('💾 Save Salaries'):
+            save_df(salaries_df, FILES['salaries'])
+            st.success('Salaries saved.')
+    with btn_arch_sal:
+        if st.button('📦 Archive Salaries'):
+            m = datetime.today().strftime('%B_%Y')
+            salaries_df.to_csv(ARCHIVE_DIR / f'salaries_{m}.csv', index=False)
+            st.success('Salaries archived.')
 
     # ─────── Add New Salary Record ───────
     with st.expander('➕ Add Salary Payment'):
@@ -260,9 +267,17 @@ elif page=='Expenses':
     st.header('💸 Expenses')
     expenses_df = st.data_editor(expenses_df, num_rows='dynamic', use_container_width=True, key='edit_expenses')
 
-    if st.button('💾 Save Expenses'):
-        save_df(expenses_df, FILES['expenses'])
-        st.success('Expenses saved.')
+    # Buttons side‑by‑side
+    btn_save_exp, btn_arch_exp, _ = st.columns([1, 1, 6])
+    with btn_save_exp:
+        if st.button('💾 Save Expenses'):
+            save_df(expenses_df, FILES['expenses'])
+            st.success('Expenses saved.')
+    with btn_arch_exp:
+        if st.button('📦 Archive Expenses'):
+            m = datetime.today().strftime('%B_%Y')
+            expenses_df.to_csv(ARCHIVE_DIR / f'expenses_{m}.csv', index=False)
+            st.success('Expenses archived.')
 
     # ─────── Add New Expense ───────
     with st.expander('➕ Add Expense'):
@@ -286,9 +301,17 @@ elif page=='Monthly Plans':
     st.header('📆 Monthly Plans')
     monthly_df = st.data_editor(monthly_df, num_rows='dynamic', use_container_width=True, key='edit_monthly')
 
-    if st.button('💾 Save Monthly Plans'):
-        save_df(monthly_df, FILES['monthly'])
-        st.success('Monthly plans saved.')
+    # Buttons side‑by‑side
+    btn_save_mp, btn_arch_mp, _ = st.columns([1, 1, 6])
+    with btn_save_mp:
+        if st.button('💾 Save Monthly Plans'):
+            save_df(monthly_df, FILES['monthly'])
+            st.success('Monthly plans saved.')
+    with btn_arch_mp:
+        if st.button('📦 Archive Monthly'):
+            m = datetime.today().strftime('%B_%Y')
+            monthly_df.to_csv(ARCHIVE_DIR / f'monthly_{m}.csv', index=False)
+            st.success('Monthly plans archived.')
 
     # ─────── Add Monthly Plan ───────
     with st.expander('➕ Add Monthly Plan'):
@@ -297,7 +320,7 @@ elif page=='Monthly Plans':
         mp_method = st.text_input('Payment Method', key='nm_method')
         mp_social = st.number_input('Social Media Budget', min_value=0.0, step=10.0, key='nm_social')
         mp_paid = st.selectbox('Paid', ['No', 'Yes'], key='nm_paid')
-        mp_month = st.date_input('Month (for reference)', value=datetime.today(), key='nm_month')
+        mp_month = st.date_input('Month', value=datetime.today(), key='nm_month')
         mp_due = st.date_input('Due Date', value=datetime.today()+timedelta(days=30), key='nm_due')
         if st.button('Add Monthly Plan'):
             new_mp = {
