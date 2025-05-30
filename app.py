@@ -186,15 +186,20 @@ elif page=='Clients':
 
 elif page=='Projects':
     st.header('📂 Projects')
-    projects_df=st.data_editor(projects_df,num_rows='dynamic',use_container_width=True,key='edit_projects')
-    col1,col2=st.columns(2)
-    if col1.button('💾 Save Projects'):
-        save_df(projects_df,FILES['projects'])
-        st.success('Projects saved.')
-    if col2.button('📦 Archive Projects'):
-        m=datetime.today().strftime('%B_%Y')
-        projects_df.to_csv(ARCHIVE_DIR/f'projects_{m}.csv',index=False)
-        st.success('Projects archived.')
+    projects_df = st.data_editor(projects_df, num_rows='dynamic', use_container_width=True, key='edit_projects')
+
+    # Buttons side‑by‑side
+    btn_save, btn_archive, _ = st.columns([1,1,6])
+    with btn_save:
+        if st.button('💾 Save Projects'):
+            save_df(projects_df, FILES['projects'])
+            st.success('Projects saved.')
+
+    with btn_archive:
+        if st.button('📦 Archive Projects'):
+            m = datetime.today().strftime('%B_%Y')
+            projects_df.to_csv(ARCHIVE_DIR / f'projects_{m}.csv', index=False)
+            st.success('Projects archived.')
 
 elif page=='Salaries':
     st.header('💼 Employee Salaries')
