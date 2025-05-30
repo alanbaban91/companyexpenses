@@ -189,7 +189,7 @@ elif page=='Projects':
     projects_df = st.data_editor(projects_df, num_rows='dynamic', use_container_width=True, key='edit_projects')
 
     # Buttons side‑by‑side
-    btn_save, btn_archive, _ = st.columns([1,1,4])
+    btn_save, btn_archive, _ = st.columns([1,1,6])
     with btn_save:
         if st.button('💾 Save Projects'):
             save_df(projects_df, FILES['projects'])
@@ -200,6 +200,32 @@ elif page=='Projects':
             m = datetime.today().strftime('%B_%Y')
             projects_df.to_csv(ARCHIVE_DIR / f'projects_{m}.csv', index=False)
             st.success('Projects archived.')
+
+    # ─────── Add New Project Form ───────
+    with st.expander('➕ Add New Project'):
+        n_client = st.text_input('Client', key='np_client')
+        n_project = st.text_input('Project', key='np_project')
+        n_employee = st.text_input('Employee', key='np_emp')
+        n_budget = st.number_input('Budget', min_value=0.0, step=100.0, key='np_budget')
+        n_p20 = st.number_input('Payment 20%', min_value=0.0, step=50.0, key='np_p20')
+        n_p40 = st.number_input('Payment 40%', min_value=0.0, step=50.0, key='np_p40')
+        n_p40_2 = st.number_input('Payment 40% (2)', min_value=0.0, step=50.0, key='np_p40_2')
+        n_paid = st.selectbox('Paid Status', ['No', 'Yes'], key='np_paid')
+        if st.button('Add Project'):
+            new_row = {
+                'Client': n_client,
+                'Project': n_project,
+                'Employee': n_employee,
+                'Budget': n_budget,
+                'Payment 20%': n_p20,
+                'Payment 40%': n_p40,
+                'Payment 40% (2)': n_p40_2,
+                'Paid Status': n_paid
+            }
+            projects_df = pd.concat([projects_df, pd.DataFrame([new_row])], ignore_index=True)
+            save_df(projects_df, FILES['projects'])
+            st.success('New project added.')
+            st.rerun()
 
 elif page=='Salaries':
     st.header('💼 Employee Salaries')
