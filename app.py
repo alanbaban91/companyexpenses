@@ -84,6 +84,8 @@ else:
     st.session_state.last_active = datetime.now()
 
 # Logout button
+logout_placeholder = st.empty()
+cols = logout_placeholder.columns([0.85, 0.15])
 if st.button('🔒 Logout'):
     st.session_state.auth = False
     st.rerun()
