@@ -229,10 +229,32 @@ elif page=='Projects':
 
 elif page=='Salaries':
     st.header('💼 Employee Salaries')
-    salaries_df=st.data_editor(salaries_df,num_rows='dynamic',use_container_width=True,key='edit_salaries')
+    salaries_df = st.data_editor(salaries_df, num_rows='dynamic', use_container_width=True, key='edit_salaries')
+
+    # Side‑by‑side buttons (only save needed)
     if st.button('💾 Save Salaries'):
-        save_df(salaries_df,FILES['salaries'])
+        save_df(salaries_df, FILES['salaries'])
         st.success('Salaries saved.')
+
+    # ─────── Add New Salary Record ───────
+    with st.expander('➕ Add Salary Payment'):
+        e_name = st.text_input('Employee Name', key='ns_emp')
+        e_role = st.text_input('Role / Position', key='ns_role')
+        e_salary = st.number_input('Salary Amount', min_value=0.0, step=50.0, key='ns_amount')
+        e_paid = st.selectbox('Paid', ['No', 'Yes'], key='ns_paid')
+        e_date = st.date_input('Payment Date', value=datetime.today(), key='ns_date')
+        if st.button('Add Salary Record'):
+            new_sal = {
+                'Employee': e_name,
+                'Role': e_role,
+                'Salary': e_salary,
+                'Paid': e_paid,
+                'Date': pd.to_datetime(e_date)
+            }
+            salaries_df = pd.concat([salaries_df, pd.DataFrame([new_sal])], ignore_index=True)
+            save_df(salaries_df, FILES['salaries'])
+            st.success('New salary record added.')
+            st.rerun()
 
 elif page=='Expenses':
     st.header('💸 Expenses')
