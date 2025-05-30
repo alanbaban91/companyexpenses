@@ -302,7 +302,7 @@ elif page=='Monthly Plans':
     monthly_df = st.data_editor(monthly_df, num_rows='dynamic', use_container_width=True, key='edit_monthly')
 
     # Buttons side‑by‑side
-    btn_save_mp, btn_arch_mp, _ = st.columns([1, 1, 12])
+    btn_save_mp, btn_arch_mp, _ = st.columns([1, 1, 7])
     with btn_save_mp:
         if st.button('💾 Save Monthly Plans'):
             save_df(monthly_df, FILES['monthly'])
