@@ -86,9 +86,11 @@ else:
 # Logout button
 logout_placeholder = st.empty()
 cols = logout_placeholder.columns([0.85, 0.15])
-if st.button('🔒 Logout'):
-    st.session_state.auth = False
-    st.rerun()
+with cols[1]:
+    if st.button('🔒 Logout'):
+        st.session_state.auth = False
+        st.rerun()
+    
 
 # ───────────────────── Load Data ─────────────────────
 clients_df = pd.read_csv(FILES['clients'])
