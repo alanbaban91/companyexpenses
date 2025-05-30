@@ -52,20 +52,20 @@ Assign roles and manage credentials
 
 🗂️ Repository Structure
 
-companyexpenses/
-├── .devcontainer/          # Development container configuration
-├── data/                   # CSV data files (clients, projects, salaries...)
-│   ├── clients.csv
-│   ├── projects.csv
-│   ├── salaries.csv
-│   ├── expenses.csv
-│   ├── monthly.csv
-│   └── users.csv           # User credentials and roles
-├── archive/                # Archived CSV snapshots by month
-├── invoices/               # Generated invoice PDFs
-├── app.py                  # Main Streamlit application
-├── README.md               # This documentation file
-└── requirements.txt        # Python dependencies
+  companyexpenses/
+  ├── .devcontainer/          # Development container configuration
+  ├── data/                   # CSV data files (clients, projects, salaries...)
+  │   ├── clients.csv
+  │   ├── projects.csv
+  │   ├── salaries.csv
+  │   ├── expenses.csv
+  │   ├── monthly.csv
+  │   └── users.csv           # User credentials and roles
+  ├── archive/                # Archived CSV snapshots by month
+  ├── invoices/               # Generated invoice PDFs
+  ├── app.py                  # Main Streamlit application
+  ├── README.md               # This documentation file
+  └── requirements.txt        # Python dependencies
 
 ⚙️ Installation & Setup
 
