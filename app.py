@@ -147,14 +147,47 @@ if page == 'Dashboard':
     c4.metric('Expenses', money(exp_tot))
     st.markdown('---')
     st.subheader('📅 Upcoming Payments')
-    upcoming = monthly_df[(monthly_df['Paid']!='Yes') & (monthly_df['DueDate'] >= datetime.today()) & (monthly_df['DueDate'] <= datetime.today()+timedelta(days=7))]
-    if not upcoming.empty:
-        for _, r in upcoming.iterrows():
-            d = (r['DueDate'] - datetime.today()).days
-            urgency = '🔴 Urgent' if d <= 2 else '🟠 Soon'
-            st.markdown(f"**{r['Client']}** — {money(r['Amount'])} ({urgency}) due {r['DueDate'].strftime('%Y-%m-%d')}")
-    else:
-        st.info('✅ No upcoming payments.')
+# --- Monthly Plan Payments ---
+upcoming = monthly_df[(monthly_df['Paid']!='Yes') & (monthly_df['DueDate'] >= datetime.today()) & (monthly_df['DueDate'] <= datetime.today()+timedelta(days=7))]
+if not upcoming.empty:
+    for _, r in upcoming.iterrows():
+        days = (r['DueDate'] - datetime.today()).days
+        u = '🔴 Urgent' if days <= 2 else '🟠 Soon'
+        st.markdown(f"**{r['Client']}** — {money(r['Amount'])} ({u}) due {r['DueDate'].strftime('%Y-%m-%d')}")
+else:
+    st.info('✅ No upcoming monthly plan payments.')
+
+# --- Project Milestone Payments ---
+st.markdown('---')
+st.subheader('📂 Upcoming Project Payments')
+
+today = datetime.today()
+project_reminders = []
+for _, row in projects_df.iterrows():
+    for label in ['Payment 20%', 'Payment 40%', 'Payment 40% (2)']:
+        amt = row.get(label, 0)
+        # Payment columns might be empty/NaN or zero
+        try:
+            amt = float(amt)
+        except:
+            amt = 0
+        if amt and (not row.get('Paid Status', '').lower() == 'yes'):
+            # You may want to add a custom "DueDate" field per milestone, or assume all are "due"
+            project_reminders.append({
+                'Client': row['Client'],
+                'Project': row['Project'],
+                'Milestone': label,
+                'Amount': amt,
+                # Dummy date: mark as due now (or use your own logic/date fields)
+                'Due': today
+            })
+
+if project_reminders:
+    for r in project_reminders:
+        st.markdown(f"**{r['Client']} - {r['Project']}** — {r['Milestone']}: {money(r['Amount'])} (Due now)")
+else:
+    st.info('✅ No upcoming project milestone payments.')
+
 
 elif page == 'Clients':
     st.header('👤 Clients')
