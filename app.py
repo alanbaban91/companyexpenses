@@ -125,7 +125,7 @@ class InvoicePDF(FPDF):
         self.cell(w,h,safe,**kwargs)
 
 # ───────────────────── Navigation ─────────────────────
-pages=['Dashboard','Clients','Projects','Salaries','Expenses','Monthly Plans','Invoice Generator','View Archives']
+pages=['Dashboard','Clients','Projects','Salaries','Expenses','Monthly Plans','View Archives']
 if st.session_state.role=='admin': pages.append('Admin Panel')
 page=st.sidebar.radio('Navigate',pages)
 
@@ -336,40 +336,6 @@ elif page=='Monthly Plans':
             save_df(monthly_df, FILES['monthly'])
             st.success('Monthly plan added.')
             st.rerun()
-
-elif page=='Invoice Generator':
-    st.header('📆 Monthly Plans')
-    monthly_df=st.data_editor(monthly_df,num_rows='dynamic',use_container_width=True,key='edit_monthly')
-    if st.button('💾 Save Monthly Plans'):
-        save_df(monthly_df,FILES['monthly'])
-        st.success('Monthly plans saved.')
-
-elif page == "Invoice Generator":
-    st.header("🧾 Generate Invoice")
-
-    if projects_df.empty:
-        st.warning("No projects available.")
-    else:
-        client  = st.selectbox("Client", projects_df["Client"].unique())
-        subset  = projects_df[projects_df["Client"] == client]
-        project = st.selectbox("Project", subset["Project"].unique())
-        sel     = subset[subset["Project"] == project].iloc[0]
-
-        for lbl in ["Payment 20%", "Payment 40%", "Payment 40% (2)"]:
-            if pd.notnull(sel[lbl]) and sel[lbl] > 0:
-                st.write(f"Next Milestone: **{lbl}** — {money(sel[lbl])}")
-                if st.button("Generate Invoice"):
-                    pdf = InvoicePDF()
-                    pdf.add_page()
-                    pdf.set_font("Arial", size=12)
-                    pdf.cell_safe(0, 10, f"Invoice for {sel['Client']}: {lbl}", ln=True)
-                    pdf.cell_safe(0, 10, f"Project: {sel['Project']} | Amount: {money(sel[lbl])}", ln=True)
-                    fn = f"Invoice_{sel['Client'].replace(' ', '_')}_{datetime.now():%Y%m%d}.pdf"
-                    fp = INV_DIR / fn
-                    pdf.output(str(fp))
-                    st.download_button("Download Invoice", open(fp, "rb"), file_name=fn)
-                break
-
 
 elif page=='View Archives':
     st.header('📁 View Archives')
