@@ -99,11 +99,6 @@ Run the app
 
 streamlit run app.py
 
-Log in
-
-Username: admin
-
-Password: password
 
 📈 Usage
 
