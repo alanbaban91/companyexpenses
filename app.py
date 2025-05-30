@@ -169,17 +169,20 @@ if page=='Dashboard':
 
 elif page=='Clients':
     st.header('👤 Clients')
-    clients_df=st.data_editor(clients_df,num_rows='dynamic',use_container_width=True,key='edit_clients')
+    clients_df = st.data_editor(clients_df, num_rows='dynamic', use_container_width=True, key='edit_clients')
     if st.button('💾 Save Clients'):
-        save_df(clients_df,FILES['clients'])
+        save_df(clients_df, FILES['clients'])
         st.success('Clients saved.')
 
-st.subheader("💹 Client Payment Breakdown")
-df = clients_df.copy()
-df[["Total Paid","Total Due"]] = df[["Total Paid","Total Due"]].apply(pd.to_numeric,errors="coerce").fillna(0)
-fig = px.bar(df, x="Client", y=["Total Paid","Total Due"], barmode="group")
-st.plotly_chart(fig, use_container_width=True)
-
+    # ─────── Client Payment Breakdown Chart ───────
+    st.subheader('💹 Client Payment Breakdown')
+    chart_df = clients_df.copy()
+    chart_df[["Total Paid", "Total Due"]] = chart_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors='coerce').fillna(0)
+    if not chart_df.empty:
+        fig = px.bar(chart_df, x='Client', y=['Total Paid', 'Total Due'], barmode='group', title='Total Paid vs. Total Due by Client')
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info('No client data to display.')
 
 elif page=='Projects':
     st.header('📂 Projects')
