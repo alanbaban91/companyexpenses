@@ -258,12 +258,63 @@ elif page=='Salaries':
 
 elif page=='Expenses':
     st.header('💸 Expenses')
-    expenses_df=st.data_editor(expenses_df,num_rows='dynamic',use_container_width=True,key='edit_expenses')
+    expenses_df = st.data_editor(expenses_df, num_rows='dynamic', use_container_width=True, key='edit_expenses')
+
     if st.button('💾 Save Expenses'):
-        save_df(expenses_df,FILES['expenses'])
+        save_df(expenses_df, FILES['expenses'])
         st.success('Expenses saved.')
 
+    # ─────── Add New Expense ───────
+    with st.expander('➕ Add Expense'):
+        ex_cat = st.text_input('Category', key='ne_cat')
+        ex_amt = st.number_input('Amount', min_value=0.0, step=1.0, key='ne_amt')
+        ex_date = st.date_input('Date', value=datetime.today(), key='ne_date')
+        ex_notes = st.text_input('Notes', key='ne_notes')
+        if st.button('Add Expense'):
+            new_exp = {
+                'Category': ex_cat,
+                'Amount': ex_amt,
+                'Date': pd.to_datetime(ex_date),
+                'Notes': ex_notes
+            }
+            expenses_df = pd.concat([expenses_df, pd.DataFrame([new_exp])], ignore_index=True)
+            save_df(expenses_df, FILES['expenses'])
+            st.success('New expense added.')
+            st.rerun()
+
 elif page=='Monthly Plans':
+    st.header('📆 Monthly Plans')
+    monthly_df = st.data_editor(monthly_df, num_rows='dynamic', use_container_width=True, key='edit_monthly')
+
+    if st.button('💾 Save Monthly Plans'):
+        save_df(monthly_df, FILES['monthly'])
+        st.success('Monthly plans saved.')
+
+    # ─────── Add Monthly Plan ───────
+    with st.expander('➕ Add Monthly Plan'):
+        mp_client = st.text_input('Client', key='nm_client')
+        mp_amt = st.number_input('Amount', min_value=0.0, step=50.0, key='nm_amt')
+        mp_method = st.text_input('Payment Method', key='nm_method')
+        mp_social = st.number_input('Social Media Budget', min_value=0.0, step=10.0, key='nm_social')
+        mp_paid = st.selectbox('Paid', ['No', 'Yes'], key='nm_paid')
+        mp_month = st.date_input('Month (for reference)', value=datetime.today(), key='nm_month')
+        mp_due = st.date_input('Due Date', value=datetime.today()+timedelta(days=30), key='nm_due')
+        if st.button('Add Monthly Plan'):
+            new_mp = {
+                'Client': mp_client,
+                'Amount': mp_amt,
+                'Payment Method': mp_method,
+                'Social Media Budget': mp_social,
+                'Paid': mp_paid,
+                'Month': mp_month.strftime('%Y-%m'),
+                'DueDate': pd.to_datetime(mp_due)
+            }
+            monthly_df = pd.concat([monthly_df, pd.DataFrame([new_mp])], ignore_index=True)
+            save_df(monthly_df, FILES['monthly'])
+            st.success('Monthly plan added.')
+            st.rerun()
+
+elif page=='Invoice Generator':
     st.header('📆 Monthly Plans')
     monthly_df=st.data_editor(monthly_df,num_rows='dynamic',use_container_width=True,key='edit_monthly')
     if st.button('💾 Save Monthly Plans'):
