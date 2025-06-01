@@ -194,9 +194,18 @@ if page == 'Dashboard':
 elif page == 'Clients':
     st.header('👤 Clients')
     clients_df = st.data_editor(clients_df, num_rows='dynamic', use_container_width=True, key='edit_clients')
-    if st.button('💾 Save Clients'):
-        save_df_state('clients', clients_df)
-        st.success('Clients saved.')
+
+    # ─────── Save & Archive Buttons ───────
+    btn_save, btn_archive, _ = st.columns([1, 1, 6])
+    with btn_save:
+        if st.button('💾 Save Clients'):
+            save_df_state('clients', clients_df)
+            st.success('Clients saved.')
+    with btn_archive:
+        if st.button('📦 Archive Clients'):
+            m = datetime.today().strftime('%B_%Y')
+            clients_df.to_csv(ARCHIVE_DIR / f'clients_{m}.csv', index=False)
+            st.success('Clients archived.')
 
     # ─────── Client Payment Breakdown Chart ───────
     st.subheader('💹 Client Payment Breakdown')
@@ -218,7 +227,6 @@ elif page == 'Projects':
         if st.button('💾 Save Projects'):
             save_df_state('projects', projects_df)
             st.success('Projects saved.')
-
     with btn_archive:
         if st.button('📦 Archive Projects'):
             m = datetime.today().strftime('%B_%Y')
