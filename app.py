@@ -26,7 +26,7 @@ FILES: Dict[str, Path] = {
 }
 
 COLUMNS: Dict[str, List[str]] = {
-    'clients': ['Client', 'Contact', 'Total Paid', 'Total Due'],
+    'clients': ['Client', 'Contact', 'Total Paid', 'Total Due'],  # Total Due will be treated as a date
     'projects': ['Client','Project','Employee','Budget','Payment 20%','Payment 40%','Payment 40% (2)','Paid Status'],
     'salaries': ['Employee','Role','Salary','Paid','Date'],
     'expenses': ['Category','Amount','Date','Notes'],
@@ -46,10 +46,13 @@ def load_df_state(name: str) -> pd.DataFrame:
     if state_key not in st.session_state:
         df = pd.read_csv(
             FILES[name],
-            parse_dates=[col for col in COLUMNS[name] if 'Date' in col or 'DueDate' in col],
+            parse_dates=[col for col in COLUMNS[name] if 'Date' in col or 'DueDate' in col or (name == 'clients' and col == 'Total Due')],
             dayfirst=True
         )
-        # If 'DueDate' isn't parsed correctly above, convert after:
+        # If 'Total Due' in clients, convert to datetime explicitly
+        if name == 'clients' and 'Total Due' in df.columns:
+            df['Total Due'] = pd.to_datetime(df['Total Due'], errors='coerce', dayfirst=True)
+        # If 'DueDate' isn't parsed correctly above for monthly, convert after:
         if name == 'monthly' and 'DueDate' in df.columns:
             df['DueDate'] = pd.to_datetime(df['DueDate'], errors='coerce', dayfirst=True)
         st.session_state[state_key] = df
@@ -57,6 +60,9 @@ def load_df_state(name: str) -> pd.DataFrame:
 
 def save_df_state(name: str, df: pd.DataFrame) -> None:
     """Save DataFrame to CSV and update session_state."""
+    # For 'clients', ensure 'Total Due' is formatted as YYYY-MM-DD before saving
+    if name == 'clients' and 'Total Due' in df.columns:
+        df['Total Due'] = pd.to_datetime(df['Total Due'], errors='coerce').dt.strftime('%Y-%m-%d')
     df.to_csv(FILES[name], index=False)
     st.session_state[f"{name}_df"] = df.copy()
 
@@ -147,8 +153,9 @@ page = st.sidebar.radio('Navigate', pages)
 # ──────────────────── Pages ────────────────────
 if page == 'Dashboard':
     st.header('📊 Dashboard Overview')
+    # Total Paid (numeric) and Total Due are now date fields, so exclude Total Due from sums
     inc = pd.to_numeric(clients_df['Total Paid'], errors='coerce').fillna(0).sum()
-    out = pd.to_numeric(clients_df['Total Due'], errors='coerce').fillna(0).sum()
+    out = 0  # No longer numeric
     paid_sal = salaries_df[salaries_df['Paid'] == 'Yes']['Salary'].sum()
     exp_tot = expenses_df['Amount'].sum() + paid_sal
     c1, c2, c3, c4 = st.columns(4)
@@ -196,6 +203,7 @@ if page == 'Dashboard':
 
 elif page == 'Clients':
     st.header('👤 Clients')
+    # Data editor will now show 'Total Due' as a date field
     clients_df = st.data_editor(clients_df, num_rows='dynamic', use_container_width=True, key='edit_clients')
 
     # ─────── Save & Archive Buttons ───────
@@ -217,10 +225,16 @@ elif page == 'Clients':
 
     # ─────── Client Payment Breakdown Chart ───────
     st.subheader('💹 Client Payment Breakdown')
+    # Only plot Total Paid, since Total Due is now a date
     chart_df = clients_df.copy()
-    chart_df[["Total Paid", "Total Due"]] = chart_df[["Total Paid", "Total Due"]].apply(pd.to_numeric, errors='coerce').fillna(0)
+    chart_df["Total Paid"] = pd.to_numeric(chart_df["Total Paid"], errors='coerce').fillna(0)
     if not chart_df.empty:
-        fig = px.bar(chart_df, x='Client', y=['Total Paid', 'Total Due'], barmode='group', title='Total Paid vs. Total Due by Client')
+        fig = px.bar(
+            chart_df,
+            x='Client',
+            y='Total Paid',
+            title='Total Paid by Client'
+        )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info('No client data to display.')
