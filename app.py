@@ -44,11 +44,14 @@ def load_df_state(name: str) -> pd.DataFrame:
     """Load a DataFrame into session_state if not already loaded."""
     state_key = f"{name}_df"
     if state_key not in st.session_state:
-        df = pd.read_csv(FILES[name], parse_dates=[col for col in COLUMNS[name] if 'Date' in col or 'DueDate' in col], dayfirst=True)
+        df = pd.read_csv(
+            FILES[name],
+            parse_dates=[col for col in COLUMNS[name] if 'Date' in col or 'DueDate' in col],
+            dayfirst=True
+        )
         # If 'DueDate' isn't parsed correctly above, convert after:
-        if name == 'monthly':
-            if 'DueDate' in df.columns:
-                df['DueDate'] = pd.to_datetime(df['DueDate'], errors='coerce', dayfirst=True)
+        if name == 'monthly' and 'DueDate' in df.columns:
+            df['DueDate'] = pd.to_datetime(df['DueDate'], errors='coerce', dayfirst=True)
         st.session_state[state_key] = df
     return st.session_state[state_key]
 
@@ -203,9 +206,14 @@ elif page == 'Clients':
             st.success('Clients saved.')
     with btn_archive:
         if st.button('📦 Archive Clients'):
+            # Archive current data
             m = datetime.today().strftime('%B_%Y')
             clients_df.to_csv(ARCHIVE_DIR / f'clients_{m}.csv', index=False)
-            st.success('Clients archived.')
+            # Clear the table
+            empty_clients = pd.DataFrame(columns=COLUMNS['clients'])
+            save_df_state('clients', empty_clients)
+            st.success('Clients archived and cleared.')
+            st.rerun()
 
     # ─────── Client Payment Breakdown Chart ───────
     st.subheader('💹 Client Payment Breakdown')
@@ -229,9 +237,14 @@ elif page == 'Projects':
             st.success('Projects saved.')
     with btn_archive:
         if st.button('📦 Archive Projects'):
+            # Archive current data
             m = datetime.today().strftime('%B_%Y')
             projects_df.to_csv(ARCHIVE_DIR / f'projects_{m}.csv', index=False)
-            st.success('Projects archived.')
+            # Clear the table
+            empty_projects = pd.DataFrame(columns=COLUMNS['projects'])
+            save_df_state('projects', empty_projects)
+            st.success('Projects archived and cleared.')
+            st.rerun()
 
     # ─────── Add New Project Form ───────
     with st.expander('➕ Add New Project'):
@@ -271,9 +284,14 @@ elif page == 'Salaries':
             st.success('Salaries saved.')
     with btn_arch_sal:
         if st.button('📦 Archive Salaries'):
+            # Archive current data
             m = datetime.today().strftime('%B_%Y')
             salaries_df.to_csv(ARCHIVE_DIR / f'salaries_{m}.csv', index=False)
-            st.success('Salaries archived.')
+            # Clear the table
+            empty_salaries = pd.DataFrame(columns=COLUMNS['salaries'])
+            save_df_state('salaries', empty_salaries)
+            st.success('Salaries archived and cleared.')
+            st.rerun()
 
     # ─────── Add New Salary Record ───────
     with st.expander('➕ Add Salary Payment'):
@@ -307,9 +325,14 @@ elif page == 'Expenses':
             st.success('Expenses saved.')
     with btn_arch_exp:
         if st.button('📦 Archive Expenses'):
+            # Archive current data
             m = datetime.today().strftime('%B_%Y')
             expenses_df.to_csv(ARCHIVE_DIR / f'expenses_{m}.csv', index=False)
-            st.success('Expenses archived.')
+            # Clear the table
+            empty_expenses = pd.DataFrame(columns=COLUMNS['expenses'])
+            save_df_state('expenses', empty_expenses)
+            st.success('Expenses archived and cleared.')
+            st.rerun()
 
     # ─────── Add New Expense ───────
     with st.expander('➕ Add Expense'):
@@ -341,9 +364,14 @@ elif page == 'Monthly Plans':
             st.success('Monthly plans saved.')
     with btn_arch_mp:
         if st.button('📦 Archive Monthly'):
+            # Archive current data
             m = datetime.today().strftime('%B_%Y')
             monthly_df.to_csv(ARCHIVE_DIR / f'monthly_{m}.csv', index=False)
-            st.success('Monthly plans archived.')
+            # Clear the table
+            empty_monthly = pd.DataFrame(columns=COLUMNS['monthly'])
+            save_df_state('monthly', empty_monthly)
+            st.success('Monthly plans archived and cleared.')
+            st.rerun()
 
     # ─────── Add Monthly Plan ───────
     with st.expander('➕ Add Monthly Plan'):
